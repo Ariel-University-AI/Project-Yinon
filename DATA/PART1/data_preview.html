@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>DATA.csv Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Heebo', 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 2rem; }
+  h1 { color: #38bdf8; border-bottom: 2px solid #334155; padding-bottom: .5rem; font-size: 1.6rem; }
+  h2 { color: #94a3b8; margin-top: 2.5rem; font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; }
+  .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 1rem 2rem; text-align: center; min-width: 130px; }
+  .stat-box .val { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+  .stat-box .label { font-size: .8rem; color: #94a3b8; margin-top: .2rem; }
+  table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 14px; overflow: hidden; margin: 1rem 0; box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+  th { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; padding: 12px 14px; font-size: .85rem; text-align: right; font-weight: 600; }
+  td { padding: 10px 14px; font-size: .85rem; border-bottom: 1px solid #1e3a5f; text-align: right; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1a3050; }
+  code { background: #0f2744; color: #93c5fd; padding: 2px 7px; border-radius: 5px; font-size: .78rem; direction: ltr; display: inline-block; }
+  .note { color: #475569; font-size: .8rem; margin-top: 2rem; padding: 1rem; background: #1e293b; border-radius: 10px; border-right: 3px solid #334155; }
+</style>
+</head>
+<body>
+<h1>&#128202; DATA.csv &mdash; מדד חברתי-כלכלי (למ&quot;ס 2019)</h1>
+
+<div class="stats">
+  <div class="stat-box"><div class="val">1,751</div><div class="label">שורות נתונים</div></div>
+  <div class="stat-box"><div class="val">70</div><div class="label">עמודות</div></div>
+  <div class="stat-box"><div class="val">14</div><div class="label">אינדיקטורים</div></div>
+  <div class="stat-box"><div class="val">20</div><div class="label">עמודות ריקות</div></div>
+</div>
+
+<h2>5 השורות הראשונות (עמודות מרכזיות)</h2>
+<table>
+  <thead><tr><th>CODE OF LOCALITY</th><th>שם יישוב</th><th>CODE OF STATISTICAL AREA</th><th> POPULATION* </th><th>INDEX VALUE**</th><th>     RANK   (1 to 1635)</th><th>CLUSTER*** (1 to 10) </th></tr></thead>
+  <tbody><tr><td>31</td><td>אופקים</td><td>2</td><td>2,773</td><td>-0.541</td><td>375</td><td>4</td></tr><tr><td>31</td><td>אופקים</td><td>3</td><td>3,045</td><td>-0.964</td><td>254</td><td>3</td></tr><tr><td>31</td><td>אופקים</td><td>4</td><td>3,044</td><td>-0.909</td><td>271</td><td>3</td></tr><tr><td>31</td><td>אופקים</td><td>6</td><td>6,123</td><td>-1.723</td><td>106</td><td>1</td></tr><tr><td>31</td><td>אופקים</td><td>7</td><td>10,424</td><td>-0.093</td><td>611</td><td>5</td></tr></tbody>
+</table>
+
+<h2>סוגי עמודות</h2>
+<table>
+  <thead><tr><th>שם עמודה</th><th>תיאור</th><th>סוג</th></tr></thead>
+  <tbody><tr><td><code>CODE OF LOCALITY</code></td><td>סמל יישוב</td><td><span style="background:#4ade80;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">float64</span></td></tr><tr><td><code>שם יישוב</code></td><td>שם יישוב</td><td><span style="background:#60a5fa;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">object (טקסט)</span></td></tr><tr><td><code>CODE OF STATISTICAL AREA</code></td><td>סמל אזור סטטיסטי</td><td><span style="background:#60a5fa;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">object (טקסט)</span></td></tr><tr><td><code>POPULATION*</code></td><td>אוכלוסייה</td><td><span style="background:#60a5fa;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">object (טקסט)</span></td></tr><tr><td><code>INDEX VALUE**</code></td><td>ערך מדד חברתי-כלכלי</td><td><span style="background:#4ade80;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">float64</span></td></tr><tr><td><code>RANK (1 to 1635)</code></td><td>דירוג</td><td><span style="background:#4ade80;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">float64</span></td></tr><tr><td><code>CLUSTER*** (1 to 10)</code></td><td>אשכול</td><td><span style="background:#4ade80;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">float64 (קטגורי)</span></td></tr><tr><td><code>VALUE / STANDARDIZED VALUE / RANK x14</code></td><td>משתני המדד (14 אינדיקטורים)</td><td><span style="background:#f59e0b;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">object / float64</span></td></tr><tr><td><code>Unnamed: 50-69</code></td><td>עמודות ריקות</td><td><span style="background:#f87171;color:#111;padding:2px 8px;border-radius:12px;font-size:0.85em;">float64 (NaN)</span></td></tr></tbody>
+</table>
+
+<div class="note">
+  &#9432; שורות המכילות <code>..</code> מציינות נתונים חסרים (פחות מ-100 תושבים באזור הסטטיסטי).
+  <br>עמודת אוכלוסייה מסוג object כי מכילה פסיקים (למשל 10,424) &mdash; יש להמיר לפני חישוב.
+</div>
+
+</body></html>
