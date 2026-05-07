@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "PowerShell(Start-Process \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\DATA_FILES\\\\BATYAM_2M\\\\bat_yam_eda.html\")"
+    ]
+  }
+}
