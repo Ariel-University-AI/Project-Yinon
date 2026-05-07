@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(python -c ' *)",
-      "PowerShell(Start-Process \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\DATA_FILES\\\\BATYAM_2M\\\\bat_yam_eda.html\")"
+      "PowerShell(Start-Process \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\DATA_FILES\\\\BATYAM_2M\\\\bat_yam_eda.html\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\Python313\\\\python.exe\" \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\DATA_FILES\\\\BATYAM_2M\\\\analyze_area.py\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\Python313\\\\python.exe\" -c \"import streamlit; import plotly; print\\('streamlit:', streamlit.__version__\\); print\\('plotly:', plotly.__version__\\)\")",
+      "PowerShell(& \"C:\\\\Program Files\\\\Python313\\\\python.exe\" -m pip install streamlit plotly --quiet)",
+      "PowerShell(& \"C:\\\\Users\\\\yinon\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\Scripts\\\\streamlit.exe\" run $appPath --server.headless true 2>&1)",
+      "PowerShell($appPath = \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\app.py\")",
+      "PowerShell(& \"C:\\\\Users\\\\yinon\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\Scripts\\\\streamlit.exe\" run \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\app.py\")"
     ]
   }
 }
