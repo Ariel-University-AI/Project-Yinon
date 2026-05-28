@@ -8,7 +8,12 @@
       "PowerShell(& \"C:\\\\Program Files\\\\Python313\\\\python.exe\" -m pip install streamlit plotly --quiet)",
       "PowerShell(& \"C:\\\\Users\\\\yinon\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\Scripts\\\\streamlit.exe\" run $appPath --server.headless true 2>&1)",
       "PowerShell($appPath = \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\app.py\")",
-      "PowerShell(& \"C:\\\\Users\\\\yinon\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\Scripts\\\\streamlit.exe\" run \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\app.py\")"
+      "PowerShell(& \"C:\\\\Users\\\\yinon\\\\AppData\\\\Roaming\\\\Python\\\\Python313\\\\Scripts\\\\streamlit.exe\" run \"c:\\\\Users\\\\yinon\\\\OneDrive\\\\����� ������\\\\�������\\\\��� �\\\\�������� ������ ��� ����\\\\AG_Project\\\\app.py\")",
+      "Bash(\"C:\\\\Program Files\\\\Python313\\\\python.exe\" -m pip install scikit-learn --quiet)",
+      "Bash(\"C:\\\\Program Files\\\\Python313\\\\python.exe\" clustering_analysis.py)",
+      "Bash('C:\\\\Program Files\\\\Python313\\\\python.exe' -c ' *)",
+      "Bash(\"C:\\\\Program Files\\\\Python313\\\\python.exe\" merge_clusters.py)",
+      "Bash(\"C:\\\\Program Files\\\\Python313\\\\python.exe\" aggregate_transactions.py)"
     ]
   }
 }
