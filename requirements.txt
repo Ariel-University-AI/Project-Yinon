@@ -5,3 +5,9 @@ streamlit
 xgboost
 scikit-learn
 joblib
+requests
+curl_cffi
+folium
+streamlit-folium
+plotly
+beautifulsoup4
