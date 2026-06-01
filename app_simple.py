@@ -89,6 +89,34 @@ st.markdown("""
     border-color: #E0E0E0 !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
     background: #FFFFFF !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transition: box-shadow 0.25s ease !important;
+  }
+  [data-testid="stVerticalBlockBorderWrapper"] > div:hover {
+    box-shadow: 0 4px 20px rgba(0,106,255,0.13) !important;
+    border-color: #006AFF !important;
+  }
+
+  /* ── Equal height + hover-expand for card rows ───────────────────────── */
+  [data-testid="stHorizontalBlock"] {
+    align-items: stretch !important;
+  }
+  [data-testid="column"]:has([data-testid="stVerticalBlockBorderWrapper"]) {
+    transition: flex-grow 0.35s ease !important;
+    flex-grow: 1 !important;
+  }
+  [data-testid="column"]:has([data-testid="stVerticalBlockBorderWrapper"]):hover {
+    flex-grow: 1.8 !important;
+  }
+  [data-testid="stVerticalBlockBorderWrapper"] {
+    height: 100% !important;
+  }
+  /* Push button to bottom of card */
+  [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stButton"] {
+    margin-top: auto !important;
+    padding-top: 12px !important;
   }
 
   /* ── Buttons ─────────────────────────────────────────────────────────── */
