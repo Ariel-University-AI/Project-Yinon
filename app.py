@@ -215,46 +215,20 @@ def _get_str(d: dict, *keys) -> str | None:
     return None
 
 
-def scrape_yad2_listing(url: str) -> dict:
-    """
-    Fetch a YAD2 item page using curl_cffi Chrome impersonation.
-    Returns dict with keys: price, rooms, area, floor, city, neighborhood, street
-    or {"error": "...", "needs_manual": bool}.
-    """
-    if not re.search(r"yad2\.co\.il/.*item/", url):
-        return {"error": "הקישור אינו תקין — חייב להיות קישור לנכס ב-yad2.co.il", "needs_manual": False}
-
-    import time as _time
-    html = None
-    curl_err = None
-    try:
-        from curl_cffi import requests as _cr
-        for _attempt, _ver in enumerate(["chrome133", "chrome124", "chrome120", "chrome110"]):
-            try:
-                if _attempt:
-                    _time.sleep(1)
-                resp = _cr.Session(impersonate=_ver).get(url, timeout=25)
-                html = resp.text
-                break
-            except Exception as _e:
-                curl_err = _e
-                continue
-    except ImportError:
-        curl_err = "curl_cffi לא מותקן"
-    if html is None:
-        try:
-            resp = requests.get(url, headers=_YAD2_HEADERS, timeout=15)
-            html = resp.text
-        except Exception as exc:
-            return {
-                "error": f"YAD2 חוסמת גישה אוטומטית. נסה שוב עוד כמה דקות, או הזן פרטים ידנית.",
-                "needs_manual": True,
-            }
-
-    # ── Extract __NEXT_DATA__ ──────────────────────────────────────────────────
+def _parse_yad2_html(html: str) -> dict:
+    """Parse a Yad2 listing page HTML → data dict. Used by both scraper and manual paste."""
     m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
     if not m:
-        return {"error": "YAD2 חוסמת כרגע גישה אוטומטית (rate-limit זמני). נסה שוב עוד כמה דקות, או הזן פרטים ידנית.", "needs_manual": True}
+        # Maybe user pasted just the raw JSON (not full HTML)
+        raw = html.strip()
+        if raw.startswith("{"):
+            try:
+                json.loads(raw)        # validate
+                m = type("_M", (), {"group": lambda self, i: raw})()
+            except json.JSONDecodeError:
+                pass
+    if not m:
+        return {"error": "לא נמצא __NEXT_DATA__ — נסה שוב או הדבק את קוד המקור של הדף.", "needs_manual": True}
 
     try:
         data = json.loads(m.group(1))
@@ -338,6 +312,51 @@ def scrape_yad2_listing(url: str) -> dict:
         "city": city, "neighborhood": hood, "street": street,
         "lat": lat, "lon": lon,
     }
+
+
+def scrape_yad2_listing(url: str) -> dict:
+    """Fetch a YAD2 item page and parse it. Returns data dict or {"error": ..., "needs_manual": bool}."""
+    if not re.search(r"yad2\.co\.il/.*item/", url):
+        return {"error": "הקישור אינו תקין — חייב להיות קישור לנכס ב-yad2.co.il", "needs_manual": False}
+
+    import time as _time
+    html = None
+    _extra_headers = {
+        "Referer": "https://www.google.com/",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "he-IL,he;q=0.9,en-US;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+        "Upgrade-Insecure-Requests": "1",
+    }
+    try:
+        from curl_cffi import requests as _cr
+        for _attempt, _ver in enumerate(["chrome133", "chrome131", "chrome124", "chrome120", "chrome116"]):
+            try:
+                if _attempt:
+                    _time.sleep(1.5)
+                s = _cr.Session(impersonate=_ver)
+                s.headers.update(_extra_headers)
+                resp = s.get(url, timeout=25)
+                if resp.status_code == 200 and len(resp.text) > 5000:
+                    html = resp.text
+                    break
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    if html is None:
+        try:
+            resp = requests.get(url, headers={**_YAD2_HEADERS, **_extra_headers}, timeout=15)
+            html = resp.text
+        except Exception:
+            return {"error": "שגיאת חיבור — בדוק חיבור לאינטרנט ונסה שוב.", "needs_manual": True}
+
+    return _parse_yad2_html(html)
 
 
 _HEB_FLOOR_ORDINALS = {
@@ -1076,6 +1095,7 @@ for _k, _v in [
     ("b_f_city_idx", 0), ("b_f_price", 1_500_000),
     ("b_f_area", 70), ("b_f_rooms", 3.0), ("b_f_floor", 2),
     ("b_fb_paste_text", ""), ("b_fb_show_paste", False),
+    ("b_yad2_show_paste", False), ("b_yad2_paste_text", ""),
 ]:
     if _k not in st.session_state:
         st.session_state[_k] = _v
@@ -1143,9 +1163,13 @@ with tab_mode_b:
                 st.session_state.b_autofill_msg = "✅ פרטים חולצו בהצלחה מהמודעה — ערכי הטופס עודכנו."
             st.rerun()
         else:
+            is_yad2_url = bool(re.search(r"yad2\.co\.il/.*item/", yad2_input))
             if af.get("needs_paste"):
                 st.session_state.b_fb_show_paste = True
                 st.session_state.b_autofill_msg  = f"⚠️ {af.get('error','לא ניתן לחלץ')}"
+            elif is_yad2_url and af.get("needs_manual"):
+                st.session_state.b_yad2_show_paste = True
+                st.session_state.b_autofill_msg = f"⚠️ {af.get('error','לא ניתן לחלץ')}"
             else:
                 st.session_state.b_autofill_msg = (
                     f"⚠️ {af.get('error','לא ניתן לחלץ')} — "
@@ -1244,6 +1268,57 @@ with tab_mode_b:
                     "לא נמצאו פרטים בטקסט. "
                     "ודא שהדבקת את כותרת וגם את תיאור המודעה המלא."
                 )
+
+    # ── YAD2 HTML paste fallback ──────────────────────────────────────────────
+    if st.session_state.b_yad2_show_paste:
+        st.info(
+            "**📋 הדבק את קוד המקור של דף YAD2 לחילוץ אוטומטי**  \n"
+            "1. פתח את המודעה ב-YAD2 בדפדפן  \n"
+            "2. לחץ **Ctrl+U** (או לחצן-ימני → \"הצג מקור דף\")  \n"
+            "3. לחץ **Ctrl+A** ואז **Ctrl+C** להעתקת כל הקוד  \n"
+            "4. הדבק כאן ולחץ **חלץ מ-HTML**"
+        )
+        yad2_html_input = st.text_area(
+            "קוד מקור של דף YAD2",
+            value=st.session_state.b_yad2_paste_text,
+            placeholder="הדבק כאן את קוד המקור של הדף (Ctrl+U → Ctrl+A → Ctrl+C)...",
+            height=130,
+            key="yad2_html_area",
+        )
+        _pc, _cc = st.columns([2, 1])
+        parse_yad2_html_btn = _pc.button("🔍 חלץ מ-HTML", type="primary", key="parse_yad2_html")
+        close_yad2_btn      = _cc.button("✖ סגור", key="close_yad2_paste")
+
+        if close_yad2_btn:
+            st.session_state.b_yad2_show_paste = False
+            st.session_state.b_yad2_paste_text = ""
+            st.rerun()
+
+        if parse_yad2_html_btn and yad2_html_input.strip():
+            st.session_state.b_yad2_paste_text = yad2_html_input
+            af = _parse_yad2_html(yad2_html_input)
+            if not af.get("error") and af.get("price"):
+                st.session_state.b_autofill = af
+                _p = max(100_000, min(20_000_000, int(af["price"])))
+                st.session_state.b_f_price = _p;  st.session_state["f_price"] = _p
+                if af.get("area"):
+                    st.session_state.b_f_area  = int(af["area"]);  st.session_state["f_area"]  = int(af["area"])
+                if af.get("rooms"):
+                    st.session_state.b_f_rooms = float(af["rooms"]); st.session_state["f_rooms"] = float(af["rooms"])
+                if af.get("floor") is not None:
+                    st.session_state.b_f_floor = int(af["floor"]);  st.session_state["f_floor"] = int(af["floor"])
+                city_match = _match_settlement(af.get("city"), settlements_b)
+                if city_match and city_match in settlements_b:
+                    st.session_state.b_f_city_idx = settlements_b.index(city_match)
+                    st.session_state["f_city"]    = city_match
+                else:
+                    st.session_state["b_city_debug"] = af.get("city")
+                st.session_state.b_yad2_show_paste  = False
+                st.session_state.b_yad2_paste_text  = ""
+                st.session_state.b_autofill_msg = "✅ פרטים חולצו בהצלחה מ-HTML שהודבק."
+                st.rerun()
+            else:
+                st.warning(f"⚠️ {af.get('error','לא ניתן לחלץ מה-HTML שהודבק.')}")
 
     # ── Step 2: property details form (always visible) ────────────────────────
     st.markdown("#### שלב 2 — פרטי הנכס")
