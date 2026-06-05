@@ -215,6 +215,18 @@ def _get_str(d: dict, *keys) -> str | None:
     return None
 
 
+def _meta(html: str, prop: str) -> str | None:
+    """Extract og/name meta tag content."""
+    m = re.search(
+        rf'<meta[^>]+(?:property|name)=["\'](?:og:)?{re.escape(prop)}["\'][^>]+content=["\']([^"\']+)["\']',
+        html, re.IGNORECASE,
+    ) or re.search(
+        rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:)?{re.escape(prop)}["\']',
+        html, re.IGNORECASE,
+    )
+    return m.group(1).strip() if m else None
+
+
 def _parse_yad2_html(html: str) -> dict:
     """Parse a Yad2 listing page HTML → data dict. Used by both scraper and manual paste."""
     m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
@@ -223,12 +235,40 @@ def _parse_yad2_html(html: str) -> dict:
         raw = html.strip()
         if raw.startswith("{"):
             try:
-                json.loads(raw)        # validate
+                json.loads(raw)
                 m = type("_M", (), {"group": lambda self, i: raw})()
             except json.JSONDecodeError:
                 pass
     if not m:
-        return {"error": "לא נמצא __NEXT_DATA__ — נסה שוב או הדבק את קוד המקור של הדף.", "needs_manual": True}
+        # ── Last resort: extract from meta tags ───────────────────────────────
+        title = _meta(html, "title") or ""
+        desc  = _meta(html, "description") or ""
+        combined = title + " " + desc
+
+        # Rooms from description
+        rm = re.search(r'(\d+(?:\.\d)?)\s*חדרים', combined)
+        rooms = float(rm.group(1)) if rm else None
+
+        # City / neighborhood / street from title pattern:
+        # "דירה, רחוב מספר, שכונה, עיר | ..."
+        parts = [p.strip() for p in title.split(",")]
+        city = hood = street = None
+        if len(parts) >= 4:
+            street_raw = parts[1]          # "עגנון 4"
+            hood   = parts[2]
+            city   = parts[3].split("|")[0].strip()
+            sm = re.match(r'^(.+?)\s+(\d+)$', street_raw)
+            street = sm.group(1) if sm else street_raw
+
+        if rooms or city:
+            return {
+                "price": None, "rooms": rooms, "area": None, "floor": None,
+                "city": city, "neighborhood": hood, "street": street,
+                "lat": None, "lon": None,
+                "error": "נמצאו פרטים חלקיים ממטא-טאגים — חסר מחיר. השלם ידנית.",
+                "needs_manual": True,
+            }
+        return {"error": "לא נמצא __NEXT_DATA__ — ודא שהדבקת את קוד המקור המלא של הדף (Ctrl+U → Ctrl+A → Ctrl+C).", "needs_manual": True}
 
     try:
         data = json.loads(m.group(1))
@@ -1121,11 +1161,58 @@ with tab_mode_b:
         fetch_btn = st.button("⬇️ חלץ", key="fetch_yad2")
 
     if fetch_btn and yad2_input:
-        st.session_state.b_url = yad2_input
-        is_fb = bool(re.search(r"facebook\.com/marketplace|fb\.com/marketplace", yad2_input))
-        spinner_msg = "מנסה לחלץ פרטים מ-Facebook Marketplace..." if is_fb else "מנסה לחלץ פרטים מ-YAD2..."
-        with st.spinner(spinner_msg):
-            af = scrape_listing(yad2_input)
+        _inp = yad2_input.strip()
+        # ── Detect HTML pasted directly into the URL field ─────────────────────
+        _looks_like_html = _inp.startswith("<!") or _inp.lower().startswith("<html")
+        if _looks_like_html:
+            af = _parse_yad2_html(_inp)
+            _og = re.search(r'property=["\']og:url["\'][^>]+content=["\']([^"\']+)["\']', _inp) \
+               or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:url["\']', _inp)
+            st.session_state.b_url = _og.group(1) if _og else ""
+
+            # Apply whatever fields were found (price may be missing)
+            _found_h, _missing_h = [], []
+            if af.get("price"):
+                _p = max(100_000, min(20_000_000, int(af["price"])))
+                st.session_state.b_f_price = _p; st.session_state["f_price"] = _p
+                _found_h.append(f"מחיר {_p:,} ₪")
+            else:
+                _missing_h.append("מחיר")
+            if af.get("area"):
+                st.session_state.b_f_area  = int(af["area"]); st.session_state["f_area"]  = int(af["area"])
+                _found_h.append(f"שטח {int(af['area'])} מ\"ר")
+            if af.get("rooms"):
+                st.session_state.b_f_rooms = float(af["rooms"]); st.session_state["f_rooms"] = float(af["rooms"])
+                _found_h.append(f"{af['rooms']:.1f} חדרים")
+            if af.get("floor") is not None:
+                st.session_state.b_f_floor = int(af["floor"]); st.session_state["f_floor"] = int(af["floor"])
+                _found_h.append(f"קומה {int(af['floor'])}")
+            _cm = _match_settlement(af.get("city"), settlements_b)
+            if _cm:
+                st.session_state.b_f_city_idx = settlements_b.index(_cm)
+                st.session_state["f_city"] = _cm
+                _found_h.append(_cm)
+            elif af.get("city"):
+                st.session_state["b_city_debug"] = af.get("city")
+
+            if _found_h:
+                st.session_state.b_autofill = af
+                _msg_h = "✅ חולץ מ-HTML: " + " · ".join(_found_h)
+                if _missing_h:
+                    _msg_h += f"  \n⚠️ חסר: {', '.join(_missing_h)} — השלם ידנית בטופס."
+                st.session_state.b_autofill_msg = _msg_h
+            else:
+                st.session_state.b_autofill_msg = (
+                    "⚠️ לא נמצאו פרטים ב-HTML שהודבק.  \n"
+                    "ודא שהדבקת את קוד המקור **המלא** (Ctrl+U → Ctrl+A → Ctrl+C)."
+                )
+            st.rerun()
+        else:
+            st.session_state.b_url = yad2_input
+            is_fb = bool(re.search(r"facebook\.com/marketplace|fb\.com/marketplace", yad2_input))
+            spinner_msg = "מנסה לחלץ פרטים מ-Facebook Marketplace..." if is_fb else "מנסה לחלץ פרטים מ-YAD2..."
+            with st.spinner(spinner_msg):
+                af = scrape_listing(yad2_input)
         if not af.get("error") and af.get("price"):
             # Auto-fill session state with scraped values
             st.session_state.b_autofill = af
@@ -1169,7 +1256,11 @@ with tab_mode_b:
                 st.session_state.b_autofill_msg  = f"⚠️ {af.get('error','לא ניתן לחלץ')}"
             elif is_yad2_url and af.get("needs_manual"):
                 st.session_state.b_yad2_show_paste = True
-                st.session_state.b_autofill_msg = f"⚠️ {af.get('error','לא ניתן לחלץ')}"
+                st.session_state.b_autofill_msg = (
+                    "⚠️ YAD2 חוסמת גישה אוטומטית.  \n"
+                    "**פתרון:** פתח את המודעה בדפדפן → לחץ **Ctrl+U** → **Ctrl+A** → **Ctrl+C**  \n"
+                    "ואז **הדבק את קוד המקור בשדה הקישור למעלה** ולחץ שוב על חלץ."
+                )
             else:
                 st.session_state.b_autofill_msg = (
                     f"⚠️ {af.get('error','לא ניתן לחלץ')} — "
@@ -1297,25 +1388,42 @@ with tab_mode_b:
         if parse_yad2_html_btn and yad2_html_input.strip():
             st.session_state.b_yad2_paste_text = yad2_html_input
             af = _parse_yad2_html(yad2_html_input)
-            if not af.get("error") and af.get("price"):
-                st.session_state.b_autofill = af
+            # Apply whatever fields were found (price optional for partial meta extraction)
+            _found, _missing = [], []
+            if af.get("price"):
                 _p = max(100_000, min(20_000_000, int(af["price"])))
-                st.session_state.b_f_price = _p;  st.session_state["f_price"] = _p
-                if af.get("area"):
-                    st.session_state.b_f_area  = int(af["area"]);  st.session_state["f_area"]  = int(af["area"])
-                if af.get("rooms"):
-                    st.session_state.b_f_rooms = float(af["rooms"]); st.session_state["f_rooms"] = float(af["rooms"])
-                if af.get("floor") is not None:
-                    st.session_state.b_f_floor = int(af["floor"]);  st.session_state["f_floor"] = int(af["floor"])
-                city_match = _match_settlement(af.get("city"), settlements_b)
-                if city_match and city_match in settlements_b:
-                    st.session_state.b_f_city_idx = settlements_b.index(city_match)
-                    st.session_state["f_city"]    = city_match
+                st.session_state.b_f_price = _p; st.session_state["f_price"] = _p
+                _found.append(f"מחיר {_p:,} ₪")
+            else:
+                _missing.append("מחיר")
+            if af.get("area"):
+                st.session_state.b_f_area  = int(af["area"]); st.session_state["f_area"]  = int(af["area"])
+                _found.append(f"שטח {int(af['area'])} מ\"ר")
+            if af.get("rooms"):
+                st.session_state.b_f_rooms = float(af["rooms"]); st.session_state["f_rooms"] = float(af["rooms"])
+                _found.append(f"{af['rooms']:.1f} חדרים")
+            if af.get("floor") is not None:
+                st.session_state.b_f_floor = int(af["floor"]); st.session_state["f_floor"] = int(af["floor"])
+                _found.append(f"קומה {int(af['floor'])}")
+            city_match = _match_settlement(af.get("city"), settlements_b)
+            if city_match:
+                st.session_state.b_f_city_idx = settlements_b.index(city_match)
+                st.session_state["f_city"]    = city_match
+                _found.append(city_match)
+            elif af.get("city"):
+                st.session_state["b_city_debug"] = af.get("city")
+
+            if _found:
+                st.session_state.b_autofill = af
+                msg = "✅ חולץ: " + " · ".join(_found)
+                if _missing:
+                    msg += f"  \n⚠️ חסר: {', '.join(_missing)} — השלם ידנית."
+                    # keep paste open if price is still missing
+                    st.session_state.b_yad2_show_paste = "מחיר" in _missing
                 else:
-                    st.session_state["b_city_debug"] = af.get("city")
-                st.session_state.b_yad2_show_paste  = False
-                st.session_state.b_yad2_paste_text  = ""
-                st.session_state.b_autofill_msg = "✅ פרטים חולצו בהצלחה מ-HTML שהודבק."
+                    st.session_state.b_yad2_show_paste = False
+                    st.session_state.b_yad2_paste_text = ""
+                st.session_state.b_autofill_msg = msg
                 st.rerun()
             else:
                 st.warning(f"⚠️ {af.get('error','לא ניתן לחלץ מה-HTML שהודבק.')}")

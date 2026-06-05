@@ -275,36 +275,57 @@ def _get_str(d: dict, *keys):
     return None
 
 
-def scrape_yad2_listing(url: str) -> dict:
-    """Fetch a YAD2 item page using curl_cffi Chrome impersonation."""
-    if not re.search(r"yad2\.co\.il/.*item/", url):
-        return {"error": "הקישור אינו תקין — חייב להיות קישור לנכס ב-yad2.co.il", "needs_manual": False}
+def _meta(html: str, prop: str):
+    m = re.search(
+        rf'<meta[^>]+(?:property|name)=["\'](?:og:)?{re.escape(prop)}["\'][^>]+content=["\']([^"\']+)["\']',
+        html, re.IGNORECASE,
+    ) or re.search(
+        rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:)?{re.escape(prop)}["\']',
+        html, re.IGNORECASE,
+    )
+    return m.group(1).strip() if m else None
 
-    import time as _time
-    html = None
-    try:
-        from curl_cffi import requests as _cr
-        for _attempt, _ver in enumerate(["chrome133", "chrome124", "chrome120", "chrome110"]):
-            try:
-                if _attempt:
-                    _time.sleep(1)
-                resp = _cr.Session(impersonate=_ver).get(url, timeout=25)
-                html = resp.text
-                break
-            except Exception:
-                continue
-    except ImportError:
-        pass
-    if html is None:
-        try:
-            resp = requests.get(url, headers=_YAD2_HEADERS, timeout=15)
-            html = resp.text
-        except Exception:
-            return {"error": "YAD2 חוסמת גישה אוטומטית. נסה שוב עוד כמה דקות, או הזן פרטים ידנית.", "needs_manual": True}
 
+def _parse_yad2_html(html: str) -> dict:
+    """Parse Yad2 listing HTML → data dict (used by scraper + manual paste)."""
     m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
     if not m:
-        return {"error": "YAD2 חוסמת כרגע גישה אוטומטית (rate-limit זמני). נסה שוב עוד כמה דקות, או הזן פרטים ידנית.", "needs_manual": True}
+        raw = html.strip()
+        if raw.startswith("{"):
+            try:
+                json.loads(raw)
+                m = type("_M", (), {"group": lambda self, i: raw})()
+            except json.JSONDecodeError:
+                pass
+    if not m:
+        # Fallback: extract from meta tags
+        title = _meta(html, "title") or ""
+        desc  = _meta(html, "description") or ""
+        combined = title + " " + desc
+        rm = re.search(r'(\d+(?:\.\d)?)\s*חדרים', combined)
+        rooms = float(rm.group(1)) if rm else None
+        parts = [p.strip() for p in title.split(",")]
+        city = hood = street = house_num = None
+        if len(parts) >= 5:
+            street_raw = parts[1]
+            hood = parts[3]
+            city = parts[4].split("|")[0].strip()
+            sm = re.match(r'^(.+?)\s+(\d+)$', street_raw)
+            street   = sm.group(1).strip() if sm else street_raw.strip()
+            house_num = sm.group(2) if sm else None
+        elif len(parts) >= 4:
+            street_raw = parts[1]
+            hood = parts[2]
+            city = parts[3].split("|")[0].strip()
+            sm = re.match(r'^(.+?)\s+(\d+)$', street_raw)
+            street   = sm.group(1).strip() if sm else street_raw.strip()
+            house_num = sm.group(2) if sm else None
+        if rooms or city:
+            return {"price": None, "rooms": rooms, "area": None, "floor": None,
+                    "city": city, "neighborhood": hood, "street": street,
+                    "house_num": house_num, "lat": None, "lon": None,
+                    "error": "נמצאו פרטים חלקיים — חסר מחיר, השלם ידנית.", "needs_manual": True}
+        return {"error": "לא נמצא __NEXT_DATA__ — ודא שהדבקת את קוד המקור המלא (Ctrl+U → Ctrl+A → Ctrl+C).", "needs_manual": True}
 
     try:
         data = json.loads(m.group(1))
@@ -313,12 +334,10 @@ def scrape_yad2_listing(url: str) -> dict:
 
     pp      = data.get("props", {}).get("pageProps", {})
     listing = None
-
     try:
         listing = pp["dehydratedState"]["queries"][0]["state"]["data"]
     except (KeyError, IndexError, TypeError):
         pass
-
     if not listing:
         for path in [["listing"], ["item"], ["itemData"], ["listingData"], ["ad"]]:
             try:
@@ -326,11 +345,9 @@ def scrape_yad2_listing(url: str) -> dict:
                 for k in path:
                     obj = obj[k]
                 if isinstance(obj, dict) and ("price" in obj or "priceOnly" in obj):
-                    listing = obj
-                    break
+                    listing = obj; break
             except (KeyError, TypeError):
                 continue
-
     if not listing:
         return {"error": "מבנה הנתונים לא מוכר.", "needs_manual": True}
 
@@ -344,34 +361,65 @@ def scrape_yad2_listing(url: str) -> dict:
             v = d.get(k)
             if isinstance(v, dict):
                 t = v.get("text") or v.get("textHeb")
-                if t and isinstance(t, str):
-                    return t.strip()
-            if v and isinstance(v, str):
-                return v.strip()
+                if t and isinstance(t, str): return t.strip()
+            if v and isinstance(v, str): return v.strip()
         return None
 
     city   = _txt(addr, "city")   or _get_str(listing, "city", "cityHeb")
     street = _txt(addr, "street") or _get_str(listing, "street", "streetHeb")
     hood   = _txt(addr, "neighborhood") or _get_str(listing, "neighborhood")
     house  = addr.get("house") or {}
-    floor  = (_get_num(house, "floor")
-               or _get_num(add_d, "floor", "floorFormatted")
-               or _get_num(listing, "floor"))
-    rooms  = (_get_num(add_d, "roomsCount", "rooms", "roomNum")
-               or _get_num(inp, "rooms")
-               or _get_num(listing, "rooms", "roomNum"))
-    area   = (_get_num(add_d, "squareMeter", "area", "meter")
-               or _get_num(inp, "squareMeter", "area")
-               or _get_num(listing, "squareMeter", "area", "meter"))
+    floor  = (_get_num(house, "floor") or _get_num(add_d, "floor", "floorFormatted") or _get_num(listing, "floor"))
+    rooms  = (_get_num(add_d, "roomsCount", "rooms", "roomNum") or _get_num(inp, "rooms") or _get_num(listing, "rooms", "roomNum"))
+    area   = (_get_num(add_d, "squareMeter", "area", "meter") or _get_num(inp, "squareMeter", "area") or _get_num(listing, "squareMeter", "area", "meter"))
     coords_d = addr.get("coords") or {}
     lat = coords_d.get("lat")
     lon = coords_d.get("lon")
-
+    # House number — try address.house.number / address.houseNum / listing.houseNum
+    _hn = (_get_num(house, "number") or _get_num(addr, "houseNum", "houseNumber")
+           or _get_num(listing, "houseNum", "houseNumber"))
+    house_num = str(int(_hn)) if _hn is not None else (_get_str(house, "number") or _get_str(addr, "houseNum"))
     if not price:
         return {"error": "לא נמצא מחיר במודעה.", "needs_manual": True}
-
     return {"price": price, "rooms": rooms, "area": area, "floor": floor,
-            "city": city, "neighborhood": hood, "street": street, "lat": lat, "lon": lon}
+            "city": city, "neighborhood": hood, "street": street,
+            "house_num": house_num, "lat": lat, "lon": lon}
+
+
+def scrape_yad2_listing(url: str) -> dict:
+    """Fetch a YAD2 item page using curl_cffi Chrome impersonation."""
+    if not re.search(r"yad2\.co\.il/.*item/", url):
+        return {"error": "הקישור אינו תקין — חייב להיות קישור לנכס ב-yad2.co.il", "needs_manual": False}
+    import time as _time
+    _extra = {
+        "Referer": "https://www.google.com/",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "cross-site", "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
+    }
+    html = None
+    try:
+        from curl_cffi import requests as _cr
+        for _attempt, _ver in enumerate(["chrome133", "chrome131", "chrome124", "chrome120", "chrome116"]):
+            try:
+                if _attempt: _time.sleep(1.5)
+                s = _cr.Session(impersonate=_ver)
+                s.headers.update(_extra)
+                resp = s.get(url, timeout=25)
+                if resp.status_code == 200 and len(resp.text) > 5000:
+                    html = resp.text; break
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    if html is None:
+        try:
+            resp = requests.get(url, headers={**_YAD2_HEADERS, **_extra}, timeout=15)
+            html = resp.text
+        except Exception:
+            return {"error": "שגיאת חיבור — בדוק חיבור לאינטרנט.", "needs_manual": True}
+    return _parse_yad2_html(html)
 
 
 _HEB_FLOOR_ORDINALS = {
@@ -568,6 +616,239 @@ def _match_settlement(city, settlements: list):
     if close:
         return norm_he_map[close[0]]
     return None
+
+
+# ─── Yad2 real-time city listing scraper ─────────────────────────────────────
+
+# Yad2 city codes — verified by probing www.yad2.co.il/realestate/forsale?city=<id>
+# and checking the fullTitleText / city.text returned in __NEXT_DATA__.
+_YAD2_CITY_IDS = {
+    # ── Confirmed correct ─────────────────────────────────────────────────────
+    "תל אביב יפו": 5000, "תל אביב": 5000,
+    "ירושלים": 3000,
+    "נתניה": 7400,
+    "פתח תקווה": 7900,
+    "ראשון לציון": 8300,
+    "בת ים": 6200,
+    "רחובות": 8400,
+    "הרצליה": 6400,
+    "כפר סבא": 6900,
+    "בני ברק": 6100,
+    "רעננה": 8700,
+    "מודיעין-מכבים-רעות": 4400, "מודיעין": 4400,
+    "עכו": 7600,
+    "נצרת": 7300,
+    "אילת": 2600,
+    "רמת השרון": 800,
+    # ── Likely correct (not blocked during testing, but verified via listing city) ─
+    "לוד": 7000,
+    "רמלה": 8800,
+    "קריית גת": 7680,
+}
+
+
+def _fetch_yad2_search_page(city_id, page=1, timeout=20):
+    """Fetch one page of Yad2 forsale search results as HTML. Returns (html, error)."""
+    url = "https://www.yad2.co.il/realestate/forsale"
+    params = {
+        "city": city_id,
+        "propertyGroup": "apartments",
+        "propertyType": "1",
+        "page": page,
+    }
+    page_hdrs = {
+        **_YAD2_HEADERS,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Referer": "https://www.yad2.co.il/realestate/forsale",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+    }
+    try:
+        from curl_cffi import requests as _cr
+        import time as _t
+        # chrome116 consistently works; try it first, then older fallbacks
+        for i, ver in enumerate(["chrome116", "chrome110", "chrome120", "chrome124"]):
+            try:
+                if i:
+                    _t.sleep(1.0)
+                s = _cr.Session(impersonate=ver)
+                s.headers.update(page_hdrs)
+                r = s.get(url, params=params, timeout=timeout)
+                if r.status_code == 200 and len(r.text) > 3000:
+                    return r.text, None
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    try:
+        r = requests.get(url, params=params, headers=page_hdrs, timeout=timeout)
+        if r.status_code == 200:
+            return r.text, None
+        return None, f"קוד שגיאה {r.status_code}"
+    except Exception as exc:
+        return None, str(exc)
+
+
+def _parse_yad2_search_html(html):
+    """Extract listing dicts from __NEXT_DATA__ in a Yad2 forsale search page.
+    Returns (items_list, error_str).  As of mid-2026, listings live in
+    pageProps.feed.{private,agency,platinum,trio}.
+    """
+    m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+    if not m:
+        return None, "לא נמצאו נתונים בעמוד — יד2 ייתכן שחסמה את הגישה."
+    try:
+        data = json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return None, "שגיאה בפענוח נתוני העמוד."
+
+    pp = data.get("props", {}).get("pageProps", {})
+
+    def _collect_from_feed(feed_dict):
+        """Collect all real listings from a feed dict keyed by listing type."""
+        result = []
+        for key in ("private", "agency", "platinum", "trio", "booster"):
+            bucket = feed_dict.get(key) or []
+            if isinstance(bucket, list):
+                result.extend(b for b in bucket if isinstance(b, dict) and b.get("price"))
+        return result
+
+    # Primary path: feed is a direct pageProps key (current Yad2 structure)
+    top_feed = pp.get("feed")
+    if isinstance(top_feed, dict):
+        items = _collect_from_feed(top_feed)
+        if items:
+            return items, None
+
+    # Fallback: buried inside dehydratedState queries
+    for q in pp.get("dehydratedState", {}).get("queries", []):
+        sd = q.get("state", {}).get("data", {})
+        if not isinstance(sd, dict):
+            continue
+        items = _collect_from_feed(sd)
+        if items:
+            return items, None
+        # Older feed_items structure
+        for key in ("feed", "feedData"):
+            sub = sd.get(key) or {}
+            if isinstance(sub, dict):
+                fi = sub.get("feed_items") or sub.get("feedItems") or []
+                if fi:
+                    return fi, None
+
+    return None, "לא נמצאו מודעות בעמוד. ייתכן שיד2 שינתה את מבנה הנתונים."
+
+
+def fetch_yad2_city_listings(city_heb, max_pages=3):
+    """Fetch real-time apartment listings from Yad2 for a Hebrew city name.
+    Returns (DataFrame, error_str). On success, error_str == ''.
+    Scrapes www.yad2.co.il/realestate/forsale?city=<id> and parses __NEXT_DATA__.
+    """
+    import difflib
+
+    # ── 1. Resolve city name → Yad2 city ID ──────────────────────────────────
+    city_id = _YAD2_CITY_IDS.get(city_heb)
+    if city_id is None:
+        norm = city_heb.strip().replace("-", " ").replace("–", " ")
+        close = difflib.get_close_matches(norm, list(_YAD2_CITY_IDS.keys()), n=1, cutoff=0.78)
+        if close:
+            city_id = _YAD2_CITY_IDS[close[0]]
+        else:
+            return pd.DataFrame(), (
+                f"עיר '{city_heb}' אינה ברשימת הערים הנתמכות לחיפוש יד2 כרגע. "
+                "נסה עיר גדולה יותר, או השתמש בנתונים ההיסטוריים."
+            )
+
+    # ── 2. Fetch and parse pages ──────────────────────────────────────────────
+    all_items = []
+    for page in range(1, max_pages + 1):
+        html, err = _fetch_yad2_search_page(city_id, page=page)
+        if err or not html:
+            if page == 1:
+                return pd.DataFrame(), (
+                    f"שגיאת חיבור ליד2: {err or 'תגובה ריקה'}. "
+                    "בדוק חיבור לאינטרנט או נסה שוב מאוחר יותר."
+                )
+            break
+
+        items, parse_err = _parse_yad2_search_html(html)
+        if parse_err:
+            if page == 1:
+                return pd.DataFrame(), parse_err
+            break
+
+        real_ads = [
+            i for i in items
+            if isinstance(i, dict)
+            and i.get("type") not in {
+                "commercial_promoted", "promoted_native",
+                "banner", "promoted", "lead_gen",
+            }
+        ]
+        all_items.extend(real_ads)
+        if len(items) < 25:
+            break
+
+    if not all_items:
+        return pd.DataFrame(), (
+            "לא נמצאו מודעות. יד2 ייתכן וחסמה את הגישה — נסה שוב בעוד מספר דקות."
+        )
+
+    # ── 3. Parse into DataFrame ───────────────────────────────────────────────
+    # Field paths confirmed from live __NEXT_DATA__ (June 2026):
+    #   address.area.text        → neighborhood / area label
+    #   address.street.text      → street name (may be absent)
+    #   address.house.number     → house number
+    #   address.house.floor      → floor
+    #   additionalDetails.squareMeter → area m²
+    #   additionalDetails.roomsCount  → rooms
+    #   price                    → asking price (int)
+    #   token                    → listing ID for URL /item/<token>
+    rows = []
+    for item in all_items:
+        price = item.get("price")
+        try:
+            price = float(price)
+        except (TypeError, ValueError):
+            continue
+        if price < 100_000:
+            continue
+
+        addr  = item.get("address") or {}
+        add_d = item.get("additionalDetails") or {}
+        house = addr.get("house") or {}
+
+        def _txt_field(d, key):
+            v = d.get(key)
+            if isinstance(v, dict):
+                return (v.get("text") or v.get("textHeb") or "").strip()
+            return (v or "").strip() if isinstance(v, str) else ""
+
+        hood    = _txt_field(addr, "area") or _txt_field(addr, "neighborhood")
+        street  = _txt_field(addr, "street")
+        hn      = house.get("number")
+        house_n = str(int(hn)) if hn is not None else ""
+        floor_v = house.get("floor")
+        area    = add_d.get("squareMeter") or add_d.get("squareMeters")
+        rooms   = add_d.get("roomsCount")  or add_d.get("rooms")
+        item_id = str(item.get("token") or item.get("orderId") or item.get("id") or "")
+
+        rows.append({
+            "שכונה":           hood,
+            "רחוב":            street,
+            "מס' בית":         house_n,
+            'שטח (מ"ר)':       float(area)    if area    is not None else np.nan,
+            "חדרים":           float(rooms)   if rooms   is not None else np.nan,
+            "קומה":            float(floor_v) if floor_v is not None else np.nan,
+            "מחיר מבוקש (₪)": int(price),
+            "_yad2_id":        item_id,
+        })
+
+    if not rows:
+        return pd.DataFrame(), "לא נמצאו מודעות עם פרטים מלאים."
+
+    return pd.DataFrame(rows), ""
 
 
 # ─── POI / Map helpers ────────────────────────────────────────────────────────
@@ -1113,8 +1394,8 @@ elif page == "🔍 מצא אזור להשקעה":
                 "יישוב":            row["settlementNameHeb"],
                 "ציון כדאיות":      row["score"],
                 "מחיר ממוצע (₪)":  int(row["avg_price"]),
-                "פער ממחיר שוק":   f"{row['avg_gap']:+.1f}%",
-                "מגמת מחירים/שנה": f"{row['trend_pct_yr']:+.1f}%",
+                "פער ממחיר שוק":   round(float(row["avg_gap"]), 1),
+                "מגמת מחירים/שנה": round(float(row["trend_pct_yr"]), 1),
                 "כמות עסקאות":     int(row["deal_count"]),
                 "מדד סוציו":       round(row["avg_socio"], 2),
             })
@@ -1127,6 +1408,20 @@ elif page == "🔍 מצא אזור להשקעה":
                     "ציון כדאיות (0-100)", min_value=0, max_value=100, format="%.0f",
                 ),
                 "מחיר ממוצע (₪)": st.column_config.NumberColumn(format="₪%,d"),
+                "פער ממחיר שוק": st.column_config.NumberColumn(
+                    "פער ממחיר שוק (%)",
+                    format="%+.1f%%",
+                    help="ההפרש בין מחיר השוק החזוי ע\"י המודל לבין המחיר שנמכר בפועל. חיובי (+) = נכסים נמכרו מתחת לשווי השוק — הזדמנות! שלילי (−) = נמכרו מעל השוק.",
+                ),
+                "מגמת מחירים/שנה": st.column_config.NumberColumn(
+                    "מגמת מחירים/שנה (%)",
+                    format="%+.1f%%",
+                    help="שינוי אחוזי ממוצע במחירי הדירות מדי שנה (נגזר מרגרסיה על עסקאות היסטוריות). חיובי = מחירים עולים — מתאים להשקעה לעליית ערך. שלילי = מחירים יורדים.",
+                ),
+                "מדד סוציו": st.column_config.NumberColumn(
+                    "מדד סוציו-אקונומי",
+                    help="מדד הלשכה המרכזית לסטטיסטיקה (למ\"ס) המשקף את רמת החיים ביישוב: הכנסות ממוצעות, השכלה, תעסוקה ועוד. ערך גבוה = אזור חזק כלכלית → יציבות מחירים וסיכון נמוך יותר. ערך נמוך = פוטנציאל עלייה גבוה יותר, אך גם סיכון גבוה יותר.",
+                ),
             },
             hide_index=True,
             use_container_width=True,
@@ -1143,12 +1438,14 @@ elif page == "🔍 מצא אזור להשקעה":
                   <td style="padding:8px;border:1px solid #E0E0E0;">0–100. ירוק = מומלץ, אדום = פחות</td></tr>
               <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר ממוצע</strong></td>
                   <td style="padding:8px;border:1px solid #E0E0E0;">ממוצע עסקאות בפועל באזור</td></tr>
-              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>פער ממחיר שוק</strong></td>
-                  <td style="padding:8px;border:1px solid #E0E0E0;">חיובי (+) = נמכר מתחת לשוק = הזדמנות</td></tr>
-              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מגמת מחירים</strong></td>
-                  <td style="padding:8px;border:1px solid #E0E0E0;">כמה % עלו המחירים בשנה</td></tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>פער ממחיר שוק (%)</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">חיובי (+) = נמכר מתחת לשוק = הזדמנות · שלילי (−) = נמכר מעל השוק</td></tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מגמת מחירים/שנה (%)</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">כמה % עלו / ירדו המחירים בשנה בממוצע</td></tr>
               <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>כמות עסקאות</strong></td>
                   <td style="padding:8px;border:1px solid #E0E0E0;">יותר עסקאות = נתון אמין יותר</td></tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מדד סוציו-אקונומי</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">מדד למ"ס לרמת החיים ביישוב. גבוה = אזור חזק → יציבות. נמוך = פוטנציאל עלייה + סיכון</td></tr>
             </table>
             """)
 
@@ -1230,8 +1527,13 @@ elif page == "🏡 בדוק נכס ספציפי":
 
     # ── URL auto-fill ─────────────────────────────────────────────────────────
     _FIELD_LABELS = {
-        "city": "🏙️ עיר", "price": "💰 מחיר",
-        "area": "📐 שטח", "rooms": "🛏️ חדרים", "floor": "🏢 קומה",
+        "price":     "💰 מחיר",
+        "city":      "🏙️ עיר",
+        "street":    "📍 רחוב",
+        "house_num": "🔢 מס׳",
+        "area":      "📐 שטח",
+        "rooms":     "🛏️ חדרים",
+        "floor":     "🏢 קומה",
     }
 
     with st.container(border=True):
@@ -1254,70 +1556,103 @@ elif page == "🏡 בדוק נכס ספציפי":
             if not paste_url or not paste_url.strip():
                 st.warning("הדבק קישור תחילה.")
             else:
-                with st.spinner("מחלץ נתונים מהקישור..."):
-                    result = scrape_listing(paste_url)
+                _inp = paste_url.strip()
+                _is_html = _inp.startswith("<!") or _inp.lower().startswith("<html")
+                if _is_html:
+                    result = _parse_yad2_html(_inp)
+                    # Restore canonical URL from og:url if present
+                    _og = re.search(r'property=["\']og:url["\'][^>]+content=["\']([^"\']+)["\']', _inp) \
+                       or re.search(r'content=["\']([^"\']+)["\'][^>]+property=["\']og:url["\']', _inp)
+                    if _og:
+                        st.session_state["cp_url"] = _og.group(1)
+                else:
+                    with st.spinner("מחלץ נתונים מהקישור..."):
+                        result = scrape_listing(_inp)
 
-                if result.get("error"):
+                # Apply whatever fields were found (works for full scrape AND partial HTML)
+                filled = []
+                if result.get("price"):
+                    st.session_state["cp_price"] = max(100_000, min(20_000_000, int(result["price"])))
+                    filled.append("price")
+                if result.get("area"):
+                    st.session_state["cp_area"]  = max(20, min(500, int(result["area"])))
+                    filled.append("area")
+                if result.get("rooms"):
+                    st.session_state["cp_rooms"] = max(1.0, min(10.0, float(result["rooms"])))
+                    filled.append("rooms")
+                if result.get("floor") is not None:
+                    st.session_state["cp_floor"] = max(0, min(50, int(result["floor"])))
+                    filled.append("floor")
+                if result.get("city"):
+                    matched = _match_settlement(result["city"], settlements)
+                    if matched:
+                        st.session_state["cp_city"] = matched
+                        filled.append("city")
+                if result.get("lat") is not None:
+                    st.session_state["cp_lat"] = result["lat"]
+                if result.get("lon") is not None:
+                    st.session_state["cp_lon"] = result["lon"]
+                if result.get("street"):
+                    st.session_state["cp_street"]       = result["street"]
+                    st.session_state["cp_street_input"] = result["street"]
+                    filled.append("street")
+                if result.get("house_num"):
+                    st.session_state["cp_house_num"] = str(result["house_num"])
+                    filled.append("house_num")
+
+                if filled:
+                    st.session_state["cp_auto_fields"] = filled
+                    if result.get("error"):
+                        # Partial extraction — show what was found + what's missing
+                        missing = [_FIELD_LABELS[f] for f in _FIELD_LABELS if f not in filled]
+                        st.warning(f"⚠️ חולץ חלקית: {', '.join(_FIELD_LABELS[f] for f in filled if f in _FIELD_LABELS)}"
+                                   + (f" | חסר: {', '.join(missing)} — השלם ידנית." if missing else ""))
+                    st.rerun()
+                else:
+                    # Nothing found at all
                     if result.get("needs_paste"):
                         st.warning(f"⚠️ {result['error']} — הדבק את תיאור המודעה ידנית בטופס למטה.")
                     elif result.get("needs_manual"):
-                        st.warning(f"⚠️ {result['error']}")
+                        st.warning(
+                            f"⚠️ {result.get('error','')}  \n"
+                            "**פתרון:** פתח המודעה בדפדפן → **Ctrl+U** → **Ctrl+A** → **Ctrl+C** → הדבק כאן ולחץ שוב."
+                        )
                     else:
-                        st.error(f"❌ {result['error']}")
-                else:
-                    filled = []
-                    if result.get("price"):
-                        st.session_state["cp_price"] = max(100_000, min(20_000_000, int(result["price"])))
-                        filled.append("price")
-                    if result.get("area"):
-                        st.session_state["cp_area"]  = max(20, min(500, int(result["area"])))
-                        filled.append("area")
-                    if result.get("rooms"):
-                        st.session_state["cp_rooms"] = max(1.0, min(10.0, float(result["rooms"])))
-                        filled.append("rooms")
-                    if result.get("floor") is not None:
-                        st.session_state["cp_floor"] = max(0, min(50, int(result["floor"])))
-                        filled.append("floor")
-                    if result.get("city"):
-                        matched = _match_settlement(result["city"], settlements)
-                        if matched:
-                            st.session_state["cp_city"] = matched
-                            filled.append("city")
-                    if result.get("lat") is not None:
-                        st.session_state["cp_lat"] = result["lat"]
-                    if result.get("lon") is not None:
-                        st.session_state["cp_lon"] = result["lon"]
-                    if result.get("street"):
-                        st.session_state["cp_street"] = result["street"]
-                    st.session_state["cp_auto_fields"] = filled
-                    st.rerun()
+                        st.error(f"❌ {result.get('error','שגיאה לא ידועה')}")
 
-        # Auto-fill badges
+        # ── Auto-fill checklist ───────────────────────────────────────────────
         auto_fields = st.session_state.get("cp_auto_fields", [])
         if auto_fields:
-            filled_badges = "  ".join(
-                f'<span style="background:#EBF3FF;border:1px solid #006AFF;border-radius:20px;'
-                f'padding:3px 11px;font-size:0.82rem;margin:2px;color:#006AFF;font-weight:500;">{_FIELD_LABELS[f]}</span>'
-                for f in auto_fields if f in _FIELD_LABELS
-            )
-            missing = [l for f, l in _FIELD_LABELS.items() if f not in auto_fields]
-            missing_txt = (
-                f'<span style="color:#999;font-size:0.82rem;"> &nbsp;·&nbsp; עדיין חסר: {", ".join(missing)}</span>'
-                if missing else ""
+            n_total  = len(_FIELD_LABELS)
+            n_filled = sum(1 for f in _FIELD_LABELS if f in auto_fields)
+            bar_color = "#1A9E3F" if n_filled == n_total else ("#F5A623" if n_filled >= 3 else "#D9534F")
+            items_html = "".join(
+                f'<span style="display:inline-flex;align-items:center;gap:4px;margin:3px 6px;font-size:0.88rem;">'
+                f'{"✅" if f in auto_fields else "❌"} '
+                f'<span style="color:{"#1A9E3F" if f in auto_fields else "#D9534F"};font-weight:{"600" if f in auto_fields else "400"};">'
+                f'{lbl}</span></span>'
+                for f, lbl in _FIELD_LABELS.items()
             )
             st.markdown(
-                f'<div dir="rtl" style="margin:8px 0 4px;line-height:2;">'
-                f'<strong>אוחזר אוטומטית:</strong> {filled_badges}{missing_txt}</div>',
+                f'<div dir="rtl" style="background:#F8F9FA;border:1px solid #E0E0E0;border-radius:8px;padding:10px 14px;margin:8px 0;">'
+                f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+                f'<strong style="font-size:0.92rem;">אחזור אוטומטי:</strong>'
+                f'<span style="background:{bar_color};color:white;border-radius:20px;padding:2px 10px;font-size:0.85rem;font-weight:700;">'
+                f'{n_filled}/{n_total}</span></div>'
+                f'<div style="display:flex;flex-wrap:wrap;">{items_html}</div>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
             if st.button("🗑️ נקה נתונים שאוחזרו", key="cp_clear_auto"):
-                st.session_state.pop("cp_auto_fields", None)
+                for k in ["cp_auto_fields", "cp_lat", "cp_lon", "cp_street", "cp_street_input"]:
+                    st.session_state.pop(k, None)
                 st.rerun()
 
     # ── Form ──────────────────────────────────────────────────────────────────
     with st.container(border=True):
         rtl('<h4>פרטי הנכס</h4>')
-        r1c1, r1c2, r1c3 = st.columns(3)
+        # Row 1 — Address
+        r1c1, r1c2, r1c3 = st.columns([2, 2, 1])
         with r1c1:
             city = st.selectbox(
                 "🏙️ עיר / יישוב", settlements,
@@ -1326,23 +1661,42 @@ elif page == "🏡 בדוק נכס ספציפי":
                 help="בחר את העיר שבה הנכס נמצא.",
             )
         with r1c2:
+            if "cp_street_input" not in st.session_state:
+                st.session_state["cp_street_input"] = st.session_state.get("cp_street", "")
+            street_input = st.text_input(
+                "📍 שם רחוב",
+                placeholder="לדוגמה: הרצל",
+                key="cp_street_input",
+                help="שם הרחוב של הנכס.",
+            )
+        with r1c3:
+            house_num = st.text_input(
+                "🔢 מס׳", value=st.session_state.get("cp_house_num", ""),
+                placeholder="12",
+                key="cp_house_num",
+                help="מספר הבית.",
+            )
+        # Row 2 — Price + Area
+        r2c1, r2c2 = st.columns(2)
+        with r2c1:
             price = st.number_input(
                 "💰 מחיר מבוקש (₪)", min_value=100_000, max_value=20_000_000,
                 value=1_500_000, step=50_000, format="%d", key="cp_price",
                 help="הסכום שהמוכר דורש. זהו הסכום שנשווה מול מחיר השוק.",
             )
-        with r1c3:
+        with r2c2:
             area = st.number_input(
                 '📐 שטח (מ"ר)', min_value=20, max_value=500, value=80, step=5, key="cp_area",
                 help="שטח הדירה במ\"ר. דירת 3 חדרים ממוצעת = 70–90 מ\"ר.",
             )
-        r2c1, r2c2, _ = st.columns(3)
-        with r2c1:
+        # Row 3 — Rooms + Floor
+        r3c1, r3c2, _ = st.columns(3)
+        with r3c1:
             rooms = st.number_input(
                 "🛏️ מספר חדרים", min_value=1.0, max_value=10.0, value=3.0, step=0.5, key="cp_rooms",
                 help="בישראל נהוג לספור גם את הסלון. דירת 3 חדרים = 2 שינות + סלון.",
             )
-        with r2c2:
+        with r3c2:
             floor = st.number_input(
                 "🏢 קומה", min_value=0, max_value=50, value=2, step=1, key="cp_floor",
                 help="קומת קרקע = 0. קומה ראשונה = 1. קומות גבוהות = בדרך כלל יקרות יותר.",
@@ -1351,11 +1705,12 @@ elif page == "🏡 בדוק נכס ספציפי":
     calc_btn = st.button("🔍 בדוק את הנכס", type="primary", use_container_width=True)
 
     if calc_btn:
+        _full_addr = " ".join(filter(None, [street_input.strip(), house_num.strip()]))
         st.session_state["cp_result"] = {
             "city": city, "price": price, "area": area, "rooms": rooms, "floor": floor,
             "lat":    st.session_state.get("cp_lat"),
             "lon":    st.session_state.get("cp_lon"),
-            "street": st.session_state.get("cp_street"),
+            "street": _full_addr or st.session_state.get("cp_street", ""),
         }
         st.session_state.pop("cp_show_map", None)
 
@@ -1701,160 +2056,500 @@ elif page == "📊 עיין בנכסים ביישוב":
         with about_col:
             rtl("""
             <h4>📊 מה הכלי הזה עושה?</h4>
-            <p>הכלי מציג את כל <strong>עסקאות הנדל"ן שיש בנתונים</strong> לעיר שתבחר,
-            ממוינות מהכדאית ביותר לפחות כדאית.</p>
-            <p><strong>מה אפשר ללמוד מכאן?</strong></p>
-            <ul>
-              <li>לראות <strong>בכמה באמת נמכרו</strong> דירות דומות לזו שמעניינת אותך</li>
-              <li>לזהות "הזדמנויות" — עסקאות שנמכרו מתחת למחיר השוק (ציון גבוה)</li>
-              <li>להבין את <strong>טווח המחירים הריאלי</strong> בעיר לפני משא ומתן</li>
-              <li>להשוות מחיר מבוקש של נכס ספציפי לעסקאות אמיתיות באותה עיר</li>
-            </ul>
+            <p>הכלי מציג רשימת נכסים לעיר שתבחר —
+            מנתונים היסטוריים (<strong>רשות המיסים</strong>) או מודעות
+            <strong>בזמן אמת מיד2</strong>.</p>
+            <p>כל עסקה/מודעה מקבלת <strong>ציון כדאיות</strong> לפי מודל הבינה המלאכותית שלנו,
+            כדי שתוכל להשוות ולמצוא הזדמנויות.</p>
             """)
 
         with inputs_col:
             rtl("""
-            <h4>📥 מה לבחור ולסנן?</h4>
+            <h4>📥 מה לבחור?</h4>
+            <p>🔹 <strong>מקור נתונים</strong><br>
+            <em>נתונים היסטוריים</em> — עסקאות שבוצעו בפועל (מחיר שנמכר).<br>
+            <em>מחירים בזמן אמת</em> — מודעות פעילות כעת ביד2 (מחיר מבוקש).</p>
             <p>🔹 <strong>עיר / יישוב</strong><br>
-            בחר את העיר שמעניינת אותך. הטבלה תתעדכן מיד.</p>
-            <p>🔹 <strong>שטח (מ"ר)</strong><br>
-            גרור את הסרגל כדי לראות רק דירות בגודל שמעניין אותך.
-            לדוגמה: רק דירות בין 60 ל-90 מ"ר.</p>
-            <p>🔹 <strong>מספר חדרים</strong><br>
-            גרור כדי לסנן לפי מספר חדרים. לדוגמה: רק דירות 3–4 חדרים.</p>
-            <p>🔹 <strong>שנת עסקה</strong><br>
-            גרור כדי לראות רק עסקאות עדכניות.
-            מומלץ להתמקד בשנים האחרונות — מחירים ישנים לא תמיד משקפים את השוק היום.</p>
+            בחר את העיר שמעניינת אותך.</p>
+            <p>🔹 <strong>סינון</strong><br>
+            גרור את הסרגלים לפי שטח, חדרים ושנה (בנתונים היסטוריים).</p>
             """)
 
-    df_all = compute_predictions()
-    cities = sorted(df_all["settlementNameHeb"].dropna().unique().tolist())
-    default_city = "בת ים" if "בת ים" in cities else cities[0]
-
-    selected_city = st.selectbox(
-        "🏙️ בחר עיר / יישוב", cities,
-        index=cities.index(default_city), key="browse_city",
-        help="בחר את העיר שמעניינת אותך לבדיקה.",
+    # ── Mode selector ─────────────────────────────────────────────────────────
+    mode = st.radio(
+        "📡 מקור נתונים:",
+        ["📂 נתונים היסטוריים (רשות המיסים)", "🔴 מחירים בזמן אמת (יד2)"],
+        horizontal=True,
+        key="browse_mode",
     )
 
-    df_city = df_all[df_all["settlementNameHeb"] == selected_city].copy()
+    # ══════════════════════════════════════════════════════════════════════════
+    # HISTORICAL MODE
+    # ══════════════════════════════════════════════════════════════════════════
+    if mode.startswith("📂"):
 
-    sm1, sm2, sm3, sm4 = st.columns(4)
-    sm1.metric("סה\"כ עסקאות",      len(df_city),
-               help="כמה עסקאות יש בבסיס הנתונים עבור עיר זו.")
-    sm2.metric("מחיר ממוצע",        f"{df_city['dealAmount'].mean():,.0f} ₪",
-               help="ממוצע מחירי המכירה בפועל — לא מחיר מבוקש!")
-    sm3.metric("שטח ממוצע",         f"{df_city['assetArea'].mean():.0f} מ\"ר",
-               help="שטח ממוצע של דירה שנמכרה בעיר.")
-    sm4.metric("ציון כדאיות ממוצע", f"{df_city['viability_score'].mean():.1f} / 100",
-               help="מעל 50 = בממוצע נמכרו מתחת לשוק.")
+        df_all = compute_predictions()
+        cities = sorted(df_all["settlementNameHeb"].dropna().unique().tolist())
+        default_city = "בת ים" if "בת ים" in cities else cities[0]
 
-    st.markdown("---")
-    rtl('<h3>סינון עסקאות</h3>')
-    rtl('<p style="color:#555">השתמש בסינון כדי למצוא דירות שמתאימות לצרכים שלך</p>')
-
-    fc1, fc2, fc3 = st.columns(3)
-    area_vals, rooms_vals, year_vals = (
-        df_city["assetArea"].dropna(),
-        df_city["assetRoomNum"].dropna(),
-        df_city["deal_year"].dropna(),
-    )
-    with fc1:
-        area_range = st.slider(
-            '📐 שטח (מ"ר)', float(area_vals.min()), float(area_vals.max()),
-            (float(area_vals.min()), float(area_vals.max())), key="browse_area",
-            help="גרור כדי לסנן לפי גודל הדירה. גרור כדי להגדיר טווח.",
-        )
-    with fc2:
-        rooms_range = st.slider(
-            "🛏️ מספר חדרים", float(rooms_vals.min()), float(rooms_vals.max()),
-            (float(rooms_vals.min()), float(rooms_vals.max())), step=0.5, key="browse_rooms",
-            help="גרור כדי לסנן לפי מספר החדרים.",
-        )
-    with fc3:
-        year_range = st.slider(
-            "📅 שנת עסקה", int(year_vals.min()), int(year_vals.max()),
-            (int(year_vals.min()), int(year_vals.max())), key="browse_year",
-            help="גרור כדי לסנן לפי שנת ביצוע העסקה. מומלץ להתמקד בשנים האחרונות.",
+        selected_city = st.selectbox(
+            "🏙️ בחר עיר / יישוב", cities,
+            index=cities.index(default_city), key="browse_city",
+            help="בחר את העיר שמעניינת אותך לבדיקה.",
         )
 
-    mask = (
-        df_city["assetArea"].between(area_range[0],   area_range[1]) &
-        df_city["assetRoomNum"].between(rooms_range[0], rooms_range[1]) &
-        df_city["deal_year"].between(year_range[0],   year_range[1])
-    )
-    df_filtered = df_city[mask].sort_values("viability_score", ascending=False).copy()
+        df_city = df_all[df_all["settlementNameHeb"] == selected_city].copy()
 
-    rtl(f'<p><strong>{len(df_filtered)} עסקאות</strong> מוצגות — מדורגות מהכדאית ביותר</p>')
+        sm1, sm2, sm3, sm4 = st.columns(4)
+        sm1.metric("סה\"כ עסקאות",      len(df_city),
+                   help="כמה עסקאות יש בבסיס הנתונים עבור עיר זו.")
+        sm2.metric("מחיר ממוצע",        f"{df_city['dealAmount'].mean():,.0f} ₪",
+                   help="ממוצע מחירי המכירה בפועל — לא מחיר מבוקש!")
+        sm3.metric("שטח ממוצע",         f"{df_city['assetArea'].mean():.0f} מ\"ר",
+                   help="שטח ממוצע של דירה שנמכרה בעיר.")
+        sm4.metric("ציון כדאיות ממוצע", f"{df_city['viability_score'].mean():.1f} / 100",
+                   help="מעל 50 = בממוצע נמכרו מתחת לשוק.")
 
-    show = df_filtered.rename(columns={
-        "neighborhood": "שכונה", "streetNameHeb": "רחוב", "houseNum": "מס' בית",
-        "assetArea": 'שטח (מ"ר)', "assetRoomNum": "חדרים", "floor_num": "קומה",
-        "dealAmount": "מחיר שנמכר (₪)", "predicted": "מחיר חזוי (₪)",
-        "viability_score": "ציון כדאיות", "deal_year": "שנה",
-    }).copy()
+        st.markdown("---")
+        rtl('<h3>סינון עסקאות</h3>')
 
-    show["מחיר שנמכר (₪)"] = show["מחיר שנמכר (₪)"].round(0).astype(int)
-    show["מחיר חזוי (₪)"]  = show["מחיר חזוי (₪)"].round(0).astype(int)
-    show['שטח (מ"ר)']       = show['שטח (מ"ר)'].round(1)
-    if "קומה" in show.columns:
-        try:
-            show["קומה"] = show["קומה"].round(0).astype(int)
-        except Exception:
-            pass
+        area_vals  = df_city["assetArea"].dropna()
+        rooms_vals = df_city["assetRoomNum"].dropna()
+        year_vals  = df_city["deal_year"].dropna()
 
-    disp_cols = [c for c in
-        ["שכונה", "רחוב", "מס' בית", 'שטח (מ"ר)', "חדרים", "קומה",
-         "מחיר שנמכר (₪)", "מחיר חזוי (₪)", "ציון כדאיות", "שנה"]
-        if c in show.columns]
-
-    st.dataframe(
-        show[disp_cols].head(30),
-        column_config={
-            "ציון כדאיות": st.column_config.ProgressColumn(
-                "ציון כדאיות (0-100)", min_value=0, max_value=100, format="%.0f",
-            ),
-            "מחיר שנמכר (₪)": st.column_config.NumberColumn(format="₪%,d"),
-            "מחיר חזוי (₪)":  st.column_config.NumberColumn(format="₪%,d"),
-        },
-        hide_index=True, use_container_width=True,
-    )
-
-    with st.expander("📖 איך לקרוא את הטבלה?"):
-        rtl("""
-        <table style="width:100%;border-collapse:collapse;">
-          <tr style="background:#F5F5F5;">
-            <th style="padding:8px;border:1px solid #E0E0E0;text-align:right;">עמודה</th>
-            <th style="padding:8px;border:1px solid #E0E0E0;text-align:right;">הסבר</th>
-          </tr>
-          <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>ציון כדאיות</strong></td>
-              <td style="padding:8px;border:1px solid #E0E0E0;">0–100. עמודה ירוקה = נמכר מתחת לשוק</td></tr>
-          <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר שנמכר</strong></td>
-              <td style="padding:8px;border:1px solid #E0E0E0;">הסכום שהקונה שילם בפועל (לא מחיר מבוקש)</td></tr>
-          <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר חזוי</strong></td>
-              <td style="padding:8px;border:1px solid #E0E0E0;">מה המודל חשב שהנכס שווה</td></tr>
-          <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>שנה</strong></td>
-              <td style="padding:8px;border:1px solid #E0E0E0;">מתי בוצעה העסקה</td></tr>
-        </table>
-        <p>הטבלה ממוינת מציון כדאיות גבוה לנמוך — העסקאות הכי "טובות" מוצגות ראשונות.</p>
-        """)
-
-    with st.expander("📊 גרף התפלגות מחירים"):
-        if len(df_filtered) >= 5:
-            fig3 = px.histogram(
-                df_filtered, x="dealAmount", nbins=30,
-                title=f"התפלגות מחירים — {selected_city}",
-                labels={"dealAmount": "מחיר (₪)", "count": "כמות עסקאות"},
-                height=350, color_discrete_sequence=["#006AFF"],
+        # Row 1 — price (₪M min/max) + rooms (min/max)
+        hc1, hc2, hc3, hc4 = st.columns(4)
+        _prices = df_city["dealAmount"].dropna()
+        with hc1:
+            h_p_from = st.number_input(
+                "💰 מחיר מינימום (₪ מ')",
+                min_value=0.0, max_value=200.0,
+                value=round(float(_prices.min()) / 1e6, 1) if len(_prices) else 0.0,
+                step=0.1, format="%.1f", key="browse_p_from",
             )
-            fig3.update_layout(margin=dict(t=40, b=20), bargap=0.05)
-            st.plotly_chart(fig3, use_container_width=True)
-            rtl(f"""
-            <p style="color:#555;font-size:0.85rem;">
-            מחיר מינימום: {df_filtered['dealAmount'].min():,.0f} ₪ &nbsp;|&nbsp;
-            חציון: {df_filtered['dealAmount'].median():,.0f} ₪ &nbsp;|&nbsp;
-            מחיר מקסימום: {df_filtered['dealAmount'].max():,.0f} ₪
-            </p>
+        with hc2:
+            h_p_to = st.number_input(
+                "מחיר מקסימום (₪ מ')",
+                min_value=0.0, max_value=200.0,
+                value=round(float(_prices.max()) / 1e6 + 0.1, 1) if len(_prices) else 200.0,
+                step=0.1, format="%.1f", key="browse_p_to",
+            )
+        _rv = rooms_vals[rooms_vals.between(1, 10)]
+        with hc3:
+            h_r_from = st.number_input(
+                "🛏️ חדרים מינימום",
+                min_value=1.0, max_value=10.0,
+                value=float(_rv.min()) if len(_rv) else 1.0,
+                step=0.5, format="%.1f", key="browse_r_from",
+            )
+        with hc4:
+            h_r_to = st.number_input(
+                "חדרים מקסימום",
+                min_value=1.0, max_value=10.0,
+                value=float(_rv.max()) if len(_rv) else 10.0,
+                step=0.5, format="%.1f", key="browse_r_to",
+            )
+
+        # Row 2 — area (min/max) + year (min/max)
+        ha1, ha2, ha3, ha4 = st.columns(4)
+        _av = area_vals[(area_vals >= 20) & (area_vals <= 600)]
+        with ha1:
+            h_a_from = st.number_input(
+                '📐 שטח מינימום (מ"ר)',
+                min_value=0, max_value=1000,
+                value=int(_av.min()) if len(_av) else 0,
+                step=5, key="browse_a_from",
+            )
+        with ha2:
+            h_a_to = st.number_input(
+                'שטח מקסימום (מ"ר)',
+                min_value=0, max_value=1000,
+                value=int(_av.max()) + 5 if len(_av) else 1000,
+                step=5, key="browse_a_to",
+            )
+        with ha3:
+            h_y_from = st.number_input(
+                "📅 שנה מינימום",
+                min_value=int(year_vals.min()) if len(year_vals) else 2000,
+                max_value=int(year_vals.max()) if len(year_vals) else 2030,
+                value=int(year_vals.min()) if len(year_vals) else 2000,
+                step=1, key="browse_y_from",
+            )
+        with ha4:
+            h_y_to = st.number_input(
+                "שנה מקסימום",
+                min_value=int(year_vals.min()) if len(year_vals) else 2000,
+                max_value=int(year_vals.max()) if len(year_vals) else 2030,
+                value=int(year_vals.max()) if len(year_vals) else 2030,
+                step=1, key="browse_y_to",
+            )
+
+        mask = (
+            df_city["dealAmount"].between(h_p_from * 1e6, h_p_to * 1e6) &
+            df_city["assetArea"].between(h_a_from, h_a_to) &
+            df_city["assetRoomNum"].between(h_r_from, h_r_to) &
+            df_city["deal_year"].between(h_y_from, h_y_to)
+        )
+        df_filtered = df_city[mask].sort_values("viability_score", ascending=False).copy()
+
+        rtl(f'<p><strong>{len(df_filtered)} עסקאות</strong> מוצגות — מדורגות מהכדאית ביותר</p>')
+
+        show = df_filtered.rename(columns={
+            "neighborhood": "שכונה", "streetNameHeb": "רחוב", "houseNum": "מס' בית",
+            "assetArea": 'שטח (מ"ר)', "assetRoomNum": "חדרים", "floor_num": "קומה",
+            "dealAmount": "מחיר שנמכר (₪)", "predicted": "מחיר חזוי (₪)",
+            "viability_score": "ציון כדאיות", "deal_year": "שנה",
+        }).copy()
+
+        show["מחיר שנמכר (₪)"] = show["מחיר שנמכר (₪)"].round(0).astype(int)
+        show["מחיר חזוי (₪)"]  = show["מחיר חזוי (₪)"].round(0).astype(int)
+        show['שטח (מ"ר)']       = show['שטח (מ"ר)'].round(1)
+        if "קומה" in show.columns:
+            try:
+                show["קומה"] = show["קומה"].round(0).astype(int)
+            except Exception:
+                pass
+
+        disp_cols = [c for c in
+            ["שכונה", "רחוב", "מס' בית", 'שטח (מ"ר)', "חדרים", "קומה",
+             "מחיר שנמכר (₪)", "מחיר חזוי (₪)", "ציון כדאיות", "שנה"]
+            if c in show.columns]
+
+        st.dataframe(
+            show[disp_cols].head(30),
+            column_config={
+                "ציון כדאיות": st.column_config.ProgressColumn(
+                    "ציון כדאיות (0-100)", min_value=0, max_value=100, format="%.0f",
+                ),
+                "מחיר שנמכר (₪)": st.column_config.NumberColumn(format="₪%,d"),
+                "מחיר חזוי (₪)":  st.column_config.NumberColumn(format="₪%,d"),
+            },
+            hide_index=True, use_container_width=True,
+        )
+
+        with st.expander("📖 איך לקרוא את הטבלה?"):
+            rtl("""
+            <table style="width:100%;border-collapse:collapse;">
+              <tr style="background:#F5F5F5;">
+                <th style="padding:8px;border:1px solid #E0E0E0;text-align:right;">עמודה</th>
+                <th style="padding:8px;border:1px solid #E0E0E0;text-align:right;">הסבר</th>
+              </tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>ציון כדאיות</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">0–100. עמודה ירוקה = נמכר מתחת לשוק</td></tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר שנמכר</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">הסכום שהקונה שילם בפועל (לא מחיר מבוקש)</td></tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר חזוי</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">מה המודל חשב שהנכס שווה</td></tr>
+              <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>שנה</strong></td>
+                  <td style="padding:8px;border:1px solid #E0E0E0;">מתי בוצעה העסקה</td></tr>
+            </table>
+            <p>הטבלה ממוינת מציון כדאיות גבוה לנמוך — העסקאות הכי "טובות" מוצגות ראשונות.</p>
             """)
+
+        with st.expander("📊 גרף התפלגות מחירים"):
+            if len(df_filtered) >= 5:
+                fig3 = px.histogram(
+                    df_filtered, x="dealAmount", nbins=30,
+                    title=f"התפלגות מחירים — {selected_city}",
+                    labels={"dealAmount": "מחיר (₪)", "count": "כמות עסקאות"},
+                    height=350, color_discrete_sequence=["#006AFF"],
+                )
+                fig3.update_layout(margin=dict(t=40, b=20), bargap=0.05)
+                st.plotly_chart(fig3, use_container_width=True)
+                rtl(f"""
+                <p style="color:#555;font-size:0.85rem;">
+                מחיר מינימום: {df_filtered['dealAmount'].min():,.0f} ₪ &nbsp;|&nbsp;
+                חציון: {df_filtered['dealAmount'].median():,.0f} ₪ &nbsp;|&nbsp;
+                מחיר מקסימום: {df_filtered['dealAmount'].max():,.0f} ₪
+                </p>
+                """)
+            else:
+                st.info("אין מספיק נתונים להצגת גרף עם הפילטרים הנוכחיים.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # REAL-TIME YAD2 MODE
+    # ══════════════════════════════════════════════════════════════════════════
+    else:
+        df_all_ref  = compute_predictions()
+        _all_cities = df_all_ref["settlementNameHeb"].dropna().unique().tolist()
+        # Only show cities that have a confirmed Yad2 city ID
+        cities_rt   = sorted(c for c in _all_cities if c in _YAD2_CITY_IDS)
+        default_rt  = "בת ים" if "בת ים" in cities_rt else (cities_rt[0] if cities_rt else "")
+
+        selected_city_rt = st.selectbox(
+            "🏙️ בחר עיר / יישוב", cities_rt,
+            index=cities_rt.index(default_rt) if default_rt in cities_rt else 0,
+            key="browse_city_rt",
+            help="מציג רק ערים הנתמכות בחיפוש יד2.",
+        )
+
+        # Invalidate cached data when city changes
+        if st.session_state.get("_rt_loaded_city") != selected_city_rt:
+            st.session_state.pop("_rt_df", None)
+            st.session_state.pop("_rt_error", None)
+
+        col_btn, col_hint = st.columns([1, 4])
+        with col_btn:
+            load_btn = st.button(
+                "🔄 טען נתונים מיד2", type="primary",
+                use_container_width=True, key="rt_load_btn",
+            )
+        with col_hint:
+            rtl(
+                '<p style="color:#696969;font-size:0.85rem;margin-top:8px;">'
+                'הנתונים נשלפים בזמן אמת מיד2. '
+                'ציון הכדאיות מחושב ע"י מודל הבינה המלאכותית שלנו מול המחיר המבוקש.'
+                '</p>'
+            )
+
+        if load_btn:
+            with st.spinner(f"טוען מודעות ב{selected_city_rt} מיד2..."):
+                df_rt_raw, rt_err = fetch_yad2_city_listings(selected_city_rt)
+
+            if rt_err:
+                st.session_state["_rt_error"] = rt_err
+                st.session_state.pop("_rt_df", None)
+            else:
+                # Apply ML model to compute predicted price & viability score
+                mdl_rt       = load_model()
+                df_ml_rt, _  = load_data()
+                feat_cols_rt = [c for c in df_ml_rt.columns if c != "dealAmount"]
+
+                city_mask_rt = df_all_ref["settlementNameHeb"] == selected_city_rt
+                sub_ml_rt    = df_ml_rt[city_mask_rt]
+                fvec_base_rt = (
+                    sub_ml_rt[feat_cols_rt].median()
+                    if not sub_ml_rt.empty
+                    else df_ml_rt[feat_cols_rt].median()
+                )
+
+                today_rt = datetime.date.today()
+                preds_rt = []
+                for _, row_rt in df_rt_raw.iterrows():
+                    fv = fvec_base_rt.copy()
+                    if not pd.isna(row_rt.get('שטח (מ"ר)', np.nan)):
+                        fv["assetArea"]    = float(row_rt['שטח (מ"ר)'])
+                    if not pd.isna(row_rt.get("חדרים", np.nan)):
+                        fv["assetRoomNum"] = float(row_rt["חדרים"])
+                    if not pd.isna(row_rt.get("קומה", np.nan)):
+                        fv["floor_num"]    = float(row_rt["קומה"])
+                    fv["deal_year"]  = float(today_rt.year)
+                    fv["deal_month"] = float(today_rt.month)
+                    try:
+                        preds_rt.append(
+                            float(mdl_rt.predict(fv[feat_cols_rt].values.reshape(1, -1))[0])
+                        )
+                    except Exception:
+                        preds_rt.append(np.nan)
+
+                df_rt_raw["מחיר חזוי (₪)"] = preds_rt
+
+                def _viab_rt(row):
+                    p, pred = row["מחיר מבוקש (₪)"], row["מחיר חזוי (₪)"]
+                    if pd.isna(pred) or p <= 0:
+                        return 50.0
+                    return float(np.clip(50.0 + (pred - p) / p * 100 * 1.5, 0, 100))
+
+                df_rt_raw["ציון כדאיות"]   = df_rt_raw.apply(_viab_rt, axis=1).round(1)
+                df_rt_raw["מחיר חזוי (₪)"] = df_rt_raw["מחיר חזוי (₪)"].round(0)
+                df_rt_raw                   = df_rt_raw.sort_values("ציון כדאיות", ascending=False)
+
+                st.session_state["_rt_df"]          = df_rt_raw
+                st.session_state["_rt_loaded_city"]  = selected_city_rt
+                st.session_state.pop("_rt_error", None)
+
+        # ── Error state ───────────────────────────────────────────────────────
+        if st.session_state.get("_rt_error"):
+            st.warning(f"⚠️ {st.session_state['_rt_error']}")
+            rtl(
+                '<p style="color:#696969;font-size:0.85rem;">'
+                'טיפ: נסה שוב בעוד כמה דקות, או השתמש ב<strong>נתונים היסטוריים</strong> שתמיד זמינים.'
+                '</p>'
+            )
+
+        # ── Data loaded — show results ────────────────────────────────────────
+        elif "_rt_df" in st.session_state and st.session_state.get("_rt_loaded_city") == selected_city_rt:
+            df_rt = st.session_state["_rt_df"].copy()
+
+            sm1, sm2, sm3, sm4 = st.columns(4)
+            sm1.metric("מודעות פעילות", len(df_rt),
+                       help="כמה מודעות יד2 פעילות נמצאו בעיר זו.")
+            _avg_p = df_rt["מחיר מבוקש (₪)"].mean()
+            sm2.metric("מחיר ממוצע מבוקש", f"{_avg_p:,.0f} ₪",
+                       help="ממוצע המחירים המבוקשים — טרם עסקה סגורה.")
+            _avg_s = df_rt['שטח (מ"ר)'].dropna().mean() if 'שטח (מ"ר)' in df_rt.columns else np.nan
+            sm3.metric("שטח ממוצע",
+                       f"{_avg_s:.0f} מ\"ר" if not pd.isna(_avg_s) else "—",
+                       help="שטח ממוצע של הדירות המוצעות.")
+            _avg_v = df_rt["ציון כדאיות"].mean()
+            sm4.metric("ציון כדאיות ממוצע", f"{_avg_v:.1f} / 100",
+                       help="מעל 50 = בממוצע המחיר מתחת להערכת המודל.")
+
+            # ── Filters ───────────────────────────────────────────────────────
+            st.markdown("---")
+            rtl('<h3>סינון מודעות</h3>')
+
+            _price_col = "מחיר מבוקש (₪)"
+            _area_col  = 'שטח (מ"ר)'
+            _rooms_col = "חדרים"
+            df_rt_filtered = df_rt.copy()
+
+            _pv = df_rt[_price_col].dropna()
+            _rv = df_rt[_rooms_col].dropna()
+            _rv = _rv[(_rv >= 1) & (_rv <= 10)]
+            _av = df_rt[_area_col].dropna()
+            _av = _av[(_av >= 20) & (_av <= 600)]
+
+            # Row 1 — price (min / max) + rooms (min / max)
+            fc1, fc2, fc3, fc4 = st.columns(4)
+            with fc1:
+                p_from = st.number_input(
+                    "💰 מחיר מינימום (₪ מ')",
+                    min_value=0.0, max_value=200.0,
+                    value=round(float(_pv.min()) / 1e6, 1) if len(_pv) else 0.0,
+                    step=0.1, format="%.1f", key="rt_p_from",
+                )
+            with fc2:
+                p_to = st.number_input(
+                    "מחיר מקסימום (₪ מ')",
+                    min_value=0.0, max_value=200.0,
+                    value=round(float(_pv.max()) / 1e6 + 0.1, 1) if len(_pv) else 200.0,
+                    step=0.1, format="%.1f", key="rt_p_to",
+                )
+            with fc3:
+                r_from = st.number_input(
+                    "🛏️ חדרים מינימום",
+                    min_value=1.0, max_value=10.0,
+                    value=float(_rv.min()) if len(_rv) else 1.0,
+                    step=0.5, format="%.1f", key="rt_r_from",
+                )
+            with fc4:
+                r_to = st.number_input(
+                    "חדרים מקסימום",
+                    min_value=1.0, max_value=10.0,
+                    value=float(_rv.max()) if len(_rv) else 10.0,
+                    step=0.5, format="%.1f", key="rt_r_to",
+                )
+
+            # Row 2 — area (min / max)
+            fa1, fa2, _, _ = st.columns(4)
+            with fa1:
+                a_from = st.number_input(
+                    '📐 שטח מינימום (מ"ר)',
+                    min_value=0, max_value=1000,
+                    value=int(_av.min()) if len(_av) else 0,
+                    step=5, key="rt_a_from",
+                )
+            with fa2:
+                a_to = st.number_input(
+                    'שטח מקסימום (מ"ר)',
+                    min_value=0, max_value=1000,
+                    value=int(_av.max()) + 5 if len(_av) else 1000,
+                    step=5, key="rt_a_to",
+                )
+
+            # Apply all filters
+            if len(_pv):
+                df_rt_filtered = df_rt_filtered[
+                    df_rt_filtered[_price_col].between(p_from * 1e6, p_to * 1e6)
+                ]
+            if len(_rv):
+                df_rt_filtered = df_rt_filtered[
+                    df_rt_filtered[_rooms_col].isna() |
+                    df_rt_filtered[_rooms_col].between(r_from, r_to)
+                ]
+            if len(_av):
+                df_rt_filtered = df_rt_filtered[
+                    df_rt_filtered[_area_col].isna() |
+                    df_rt_filtered[_area_col].between(a_from, a_to)
+                ]
+
+            df_rt_filtered = df_rt_filtered.sort_values("ציון כדאיות", ascending=False)
+            rtl(f'<p><strong>{len(df_rt_filtered)} מודעות</strong> מוצגות — מדורגות מהכדאית ביותר</p>')
+
+            # Build display table — drop שכונה (Yad2 returns regional area name, same for all rows)
+            show_rt = df_rt_filtered.copy()
+            if "מחיר חזוי (₪)" in show_rt.columns:
+                show_rt["מחיר חזוי (₪)"] = show_rt["מחיר חזוי (₪)"].round(0).astype("Int64")
+            if _area_col in show_rt.columns:
+                show_rt[_area_col] = show_rt[_area_col].round(0).astype("Int64")
+            if "קומה" in show_rt.columns:
+                try:
+                    show_rt["קומה"] = show_rt["קומה"].round(0).astype("Int64")
+                except Exception:
+                    pass
+            if "_yad2_id" in show_rt.columns:
+                show_rt["🔗 קישור"] = show_rt["_yad2_id"].apply(
+                    lambda i: f"https://www.yad2.co.il/item/{i}" if i else ""
+                )
+
+            rt_disp_cols = [c for c in [
+                "רחוב", "מס' בית", 'שטח (מ"ר)', "חדרים", "קומה",
+                "מחיר מבוקש (₪)", "מחיר חזוי (₪)", "ציון כדאיות", "🔗 קישור",
+            ] if c in show_rt.columns]
+
+            st.dataframe(
+                show_rt[rt_disp_cols].head(50),
+                column_config={
+                    "ציון כדאיות": st.column_config.ProgressColumn(
+                        "ציון כדאיות (0-100)", min_value=0, max_value=100, format="%.0f",
+                    ),
+                    "מחיר מבוקש (₪)": st.column_config.NumberColumn(format="₪%,d"),
+                    "מחיר חזוי (₪)":  st.column_config.NumberColumn(format="₪%,d"),
+                    "🔗 קישור": st.column_config.LinkColumn("🔗 יד2", display_text="פתח מודעה"),
+                },
+                hide_index=True, use_container_width=True,
+            )
+
+            with st.expander("📖 איך לקרוא את הטבלה?"):
+                rtl("""
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr style="background:#F5F5F5;">
+                    <th style="padding:8px;border:1px solid #E0E0E0;text-align:right;">עמודה</th>
+                    <th style="padding:8px;border:1px solid #E0E0E0;text-align:right;">הסבר</th>
+                  </tr>
+                  <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>ציון כדאיות</strong></td>
+                      <td style="padding:8px;border:1px solid #E0E0E0;">0–100. ירוק = מחיר מתחת להערכת המודל = הזדמנות</td></tr>
+                  <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר מבוקש</strong></td>
+                      <td style="padding:8px;border:1px solid #E0E0E0;">מה המוכר דורש — עדיין לא עסקה סגורה</td></tr>
+                  <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>מחיר חזוי</strong></td>
+                      <td style="padding:8px;border:1px solid #E0E0E0;">מה המודל מעריך שהנכס שווה לפי עסקאות היסטוריות</td></tr>
+                  <tr><td style="padding:8px;border:1px solid #E0E0E0;"><strong>קישור</strong></td>
+                      <td style="padding:8px;border:1px solid #E0E0E0;">לחץ לפתיחת המודעה המלאה ביד2</td></tr>
+                </table>
+                <p>הטבלה ממוינת מציון כדאיות גבוה לנמוך. שים לב: מחיר מבוקש ≠ מחיר עסקה סופי.</p>
+                """)
+
+            with st.expander("📊 גרף התפלגות מחירים"):
+                if len(df_rt_filtered) >= 5:
+                    fig_rt = px.histogram(
+                        df_rt_filtered, x="מחיר מבוקש (₪)", nbins=25,
+                        title=f"התפלגות מחירים מבוקשים — {selected_city_rt}",
+                        labels={"מחיר מבוקש (₪)": "מחיר מבוקש (₪)", "count": "כמות מודעות"},
+                        height=350, color_discrete_sequence=["#E25252"],
+                    )
+                    fig_rt.update_layout(margin=dict(t=40, b=20), bargap=0.05)
+                    st.plotly_chart(fig_rt, use_container_width=True)
+                    rtl(f"""
+                    <p style="color:#555;font-size:0.85rem;">
+                    מחיר מינימום: {df_rt_filtered['מחיר מבוקש (₪)'].min():,.0f} ₪ &nbsp;|&nbsp;
+                    חציון: {int(df_rt_filtered['מחיר מבוקש (₪)'].median()):,.0f} ₪ &nbsp;|&nbsp;
+                    מחיר מקסימום: {df_rt_filtered['מחיר מבוקש (₪)'].max():,.0f} ₪
+                    </p>
+                    """)
+                else:
+                    st.info("אין מספיק נתונים להצגת גרף עם הפילטרים הנוכחיים.")
+
+        # ── Empty state — waiting for user to press the load button ──────────
         else:
-            st.info("אין מספיק נתונים להצגת גרף עם הפילטרים הנוכחיים.")
+            rtl("""
+            <div dir="rtl" style="background:#EBF3FF;border:1px solid #006AFF;border-radius:10px;
+                 padding:20px 24px;text-align:right;margin:16px 0;">
+              <p style="font-size:1.1rem;font-weight:700;color:#006AFF;">📡 מצב בזמן אמת</p>
+              <p>לחץ <strong>טען נתונים מיד2</strong> כדי לשלוף את המודעות הפעילות כעת בעיר שבחרת.</p>
+              <p style="color:#555;font-size:0.88rem;">
+                הנתונים נשלפים ישירות מאתר יד2 ועשויים להשתנות בכל רגע.<br>
+                ציון הכדאיות מחושב ע"י מודל הבינה המלאכותית שלנו מול המחיר המבוקש.
+              </p>
+            </div>
+            """)
