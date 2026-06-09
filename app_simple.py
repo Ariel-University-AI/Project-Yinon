@@ -28,142 +28,305 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-  /* ── Font & Base ─────────────────────────────────────────────────────── */
-  .stApp, body {
-    background-color: #F5F5F5 !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-  }
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700;900&family=Rubik:wght@300;400;500;700;900&display=swap');
 
-  /* ── Page container ──────────────────────────────────────────────────── */
-  .block-container { padding-top: 1rem; padding-bottom: 2rem; }
+/* ── Design Tokens ───────────────────────────────────────────────────── */
+:root {
+  --brand-900: oklch(18% 0.09 155);
+  --brand-700: oklch(27% 0.12 155);
+  --brand-500: oklch(40% 0.14 155);
+  --brand-400: oklch(50% 0.15 155);
+  --brand-200: oklch(88% 0.06 155);
+  --brand-100: oklch(96% 0.015 155);
+  --ink-900:   oklch(13% 0.015 155);
+  --ink-700:   oklch(28% 0.025 155);
+  --ink-500:   oklch(45% 0.03 155);
+  --ink-400:   oklch(56% 0.03 155);
+  --ink-200:   oklch(82% 0.018 155);
+  --ink-100:   oklch(95% 0.01 155);
+  --good:      oklch(50% 0.16 148);
+  --good-bg:   oklch(95% 0.04 148);
+  --fair:      oklch(68% 0.14 78);
+  --fair-bg:   oklch(96% 0.04 78);
+  --bad:       oklch(52% 0.16 25);
+  --bad-bg:    oklch(96% 0.04 25);
+  --bg:        oklch(99.5% 0.003 155);
+  --surface:   oklch(97% 0.008 155);
+  --font-display: 'Noto Serif Hebrew', Georgia, serif;
+  --font-body:    'Rubik', system-ui, sans-serif;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 14px;
+}
 
-  /* ── Metrics ─────────────────────────────────────────────────────────── */
-  [data-testid="stMetricValue"]    { font-size: 1.5rem !important; font-weight: 700 !important; color: #2A2A33 !important; }
-  [data-testid="stMetricLabel"]    { font-size: .8rem !important; color: #696969 !important; font-weight: 500 !important; }
-  [data-testid="metric-container"] {
-    background: #FFFFFF;
-    border: 1px solid #E0E0E0;
-    border-radius: 8px;
-    padding: 16px 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    transition: box-shadow 0.2s ease;
-  }
-  [data-testid="metric-container"]:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-  }
+/* ── Font & Base ─────────────────────────────────────────────────────── */
+.stApp, body {
+  background-color: var(--bg) !important;
+  font-family: var(--font-body) !important;
+  color: var(--ink-900) !important;
+  -webkit-font-smoothing: antialiased;
+}
 
-  /* ── Labels ──────────────────────────────────────────────────────────── */
-  label { font-weight: 600 !important; color: #2A2A33 !important; }
+/* ── Scrollbar ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--ink-100); }
+::-webkit-scrollbar-thumb { background: var(--brand-500); border-radius: 3px; }
 
-  /* ── Verdict boxes ───────────────────────────────────────────────────── */
-  .verdict-good {
-    background: #EAF7EE;
-    border: 2px solid #1A9E3F;
-    border-radius: 12px;
-    padding: 28px 32px;
-    text-align: center;
-    margin: 16px 0;
-    box-shadow: 0 2px 8px rgba(26,158,63,0.10);
-  }
-  .verdict-ok {
-    background: #FFF8ED;
-    border: 2px solid #F5A623;
-    border-radius: 12px;
-    padding: 28px 32px;
-    text-align: center;
-    margin: 16px 0;
-    box-shadow: 0 2px 8px rgba(245,166,35,0.10);
-  }
-  .verdict-bad {
-    background: #FDF0EF;
-    border: 2px solid #D9534F;
-    border-radius: 12px;
-    padding: 28px 32px;
-    text-align: center;
-    margin: 16px 0;
-    box-shadow: 0 2px 8px rgba(217,83,79,0.10);
-  }
+/* ── Page container ──────────────────────────────────────────────────── */
+.block-container { padding-top: 1rem; padding-bottom: 2rem; }
 
-  /* ── Cards / bordered containers ─────────────────────────────────────── */
-  [data-testid="stVerticalBlockBorderWrapper"] > div {
-    border-radius: 8px !important;
-    border-color: #E0E0E0 !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
-    background: #FFFFFF !important;
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    transition: box-shadow 0.25s ease !important;
-  }
-  [data-testid="stVerticalBlockBorderWrapper"] > div:hover {
-    box-shadow: 0 4px 20px rgba(0,106,255,0.13) !important;
-    border-color: #006AFF !important;
-  }
+/* ── Display font for headings ───────────────────────────────────────── */
+h1, h2, h3, h4,
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
+  font-family: var(--font-display) !important;
+  font-weight: 300 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.4 !important;
+  overflow: visible !important;
+  padding-bottom: 0.06em !important;
+}
+.stMarkdown { overflow: visible !important; }
 
-  /* ── Equal height + hover-expand for card rows ───────────────────────── */
-  [data-testid="stHorizontalBlock"] {
-    align-items: stretch !important;
-  }
-  [data-testid="column"]:has([data-testid="stVerticalBlockBorderWrapper"]) {
-    transition: flex-grow 0.35s ease !important;
-    flex-grow: 1 !important;
-  }
-  [data-testid="column"]:has([data-testid="stVerticalBlockBorderWrapper"]):hover {
-    flex-grow: 1.8 !important;
-  }
-  [data-testid="stVerticalBlockBorderWrapper"] {
-    height: 100% !important;
-  }
-  /* Push button to bottom of card */
-  [data-testid="stVerticalBlockBorderWrapper"] [data-testid="stButton"] {
-    margin-top: auto !important;
-    padding-top: 12px !important;
-  }
+/* ── Metrics ─────────────────────────────────────────────────────────── */
+[data-testid="stMetricValue"] {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  color: var(--ink-900) !important;
+}
+[data-testid="stMetricLabel"] {
+  font-size: .8rem !important;
+  color: var(--ink-500) !important;
+  font-weight: 500 !important;
+}
+[data-testid="metric-container"] {
+  background: #fff;
+  border: 1.5px solid var(--ink-200);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  box-shadow: 0 2px 8px oklch(13% 0.015 155 / 0.04);
+  transition: box-shadow 0.22s ease, border-color 0.22s ease;
+}
+[data-testid="metric-container"]:hover {
+  box-shadow: 0 4px 16px oklch(27% 0.12 155 / 0.10);
+  border-color: var(--brand-400);
+}
 
-  /* ── Buttons ─────────────────────────────────────────────────────────── */
-  .stButton > button {
-    border-radius: 6px !important;
-    font-weight: 500 !important;
-    transition: all 0.15s ease !important;
-  }
-  [data-testid="stBaseButton-primary"],
-  .stButton > button[kind="primary"] {
-    background-color: #006AFF !important;
-    border-color: #006AFF !important;
-    color: #FFFFFF !important;
-    font-weight: 600 !important;
-  }
-  [data-testid="stBaseButton-primary"]:hover,
-  .stButton > button[kind="primary"]:hover {
-    background-color: #0053D6 !important;
-    border-color: #0053D6 !important;
-  }
+/* ── Labels ──────────────────────────────────────────────────────────── */
+label { font-weight: 600 !important; color: var(--ink-700) !important; }
 
-  /* ── Sidebar ─────────────────────────────────────────────────────────── */
-  [data-testid="stSidebar"] {
-    background: #FFFFFF !important;
-    border-left: 1px solid #E0E0E0 !important;
-  }
+/* ── Verdict boxes ───────────────────────────────────────────────────── */
+.verdict-good {
+  background: var(--good-bg);
+  border: 2px solid var(--good);
+  border-radius: var(--r-lg);
+  padding: 28px 32px;
+  text-align: center;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px oklch(50% 0.16 148 / 0.10);
+}
+.verdict-ok {
+  background: var(--fair-bg);
+  border: 2px solid var(--fair);
+  border-radius: var(--r-lg);
+  padding: 28px 32px;
+  text-align: center;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px oklch(68% 0.14 78 / 0.10);
+}
+.verdict-bad {
+  background: var(--bad-bg);
+  border: 2px solid var(--bad);
+  border-radius: var(--r-lg);
+  padding: 28px 32px;
+  text-align: center;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px oklch(52% 0.16 25 / 0.10);
+}
 
-  /* ── GLOBAL RTL ──────────────────────────────────────────────────────── */
-  section[data-testid="stMain"],
-  section[data-testid="stMain"] * {
-    direction: rtl !important;
-    text-align: right !important;
-  }
+/* ── Cards / bordered containers ─────────────────────────────────────── */
+[data-testid="stVerticalBlockBorderWrapper"] > div {
+  border-radius: var(--r-md) !important;
+  border-color: var(--ink-200) !important;
+  box-shadow: 0 2px 8px oklch(13% 0.015 155 / 0.04) !important;
+  background: #fff !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] > div:hover {
+  box-shadow: 0 4px 20px oklch(27% 0.12 155 / 0.12) !important;
+  border-color: var(--brand-400) !important;
+}
 
-  /* ── LTR exceptions ──────────────────────────────────────────────────── */
-  input, textarea,
-  [data-baseweb="input"] input,
-  [data-baseweb="textarea"] textarea {
-    direction: ltr !important;
-    text-align: left !important;
+/* ── Equal height + hover-expand for card rows ───────────────────────── */
+[data-testid="stHorizontalBlock"] {
+  align-items: stretch !important;
+}
+[data-testid="column"]:has([data-testid="stVerticalBlockBorderWrapper"]) {
+  transition: flex-grow 0.35s ease !important;
+  flex-grow: 1 !important;
+}
+[data-testid="column"]:has([data-testid="stVerticalBlockBorderWrapper"]):hover {
+  flex-grow: 1.8 !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] {
+  height: 100% !important;
+}
+/* Push button to bottom of card */
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stButton"] {
+  margin-top: auto !important;
+  padding-top: 12px !important;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.stButton > button {
+  border-radius: var(--r-md) !important;
+  font-weight: 500 !important;
+  font-family: var(--font-body) !important;
+  transition: background 0.18s, border-color 0.18s,
+              transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+[data-testid="stBaseButton-primary"],
+.stButton > button[kind="primary"] {
+  background-color: var(--brand-700) !important;
+  border-color: var(--brand-700) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+[data-testid="stBaseButton-primary"]:hover,
+.stButton > button[kind="primary"]:hover {
+  background-color: var(--brand-900) !important;
+  border-color: var(--brand-900) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px oklch(18% 0.09 155 / 0.25) !important;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+  background: #fff !important;
+  border-left: 1.5px solid var(--ink-200) !important;
+}
+
+/* ── GLOBAL RTL ──────────────────────────────────────────────────────── */
+section[data-testid="stMain"],
+section[data-testid="stMain"] * {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+/* ── LTR exceptions ──────────────────────────────────────────────────── */
+input, textarea,
+[data-baseweb="input"] input,
+[data-baseweb="textarea"] textarea {
+  direction: ltr !important;
+  text-align: left !important;
+}
+.js-plotly-plot, .js-plotly-plot *, iframe,
+[data-testid="stIFrame"]          { direction: ltr !important; }
+[data-baseweb="slider"] [role="slider"] { direction: ltr !important; }
+[data-testid="stDataFrameContainer"],
+[data-testid="stDataFrameContainer"] * { direction: ltr !important; text-align: left !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOTION SYSTEM
+   Brand: honest, analytical, direct — motion earns trust through
+   clarity, not decoration. 200–400ms ease-out-expo, no bounce.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ag-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ag-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes ag-reveal {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Page entrance: the whole content area fades in ────────────────── */
+.block-container {
+  animation: ag-fade-in 300ms var(--ease-out-expo) both;
+}
+
+/* ── Headings: gentle slide-down entrance ───────────────────────────── */
+h1, .stMarkdown h1 {
+  animation: ag-fade-up 360ms var(--ease-out-expo) 30ms both;
+}
+h2, .stMarkdown h2 {
+  animation: ag-fade-up 300ms var(--ease-out-expo) 40ms both;
+}
+
+/* ── Feature / nav cards: staggered entrance ────────────────────────── */
+[data-testid="stHorizontalBlock"]:has([data-testid="stVerticalBlockBorderWrapper"])
+  [data-testid="column"]:nth-child(1) [data-testid="stVerticalBlockBorderWrapper"] {
+  animation: ag-fade-up 420ms var(--ease-out-expo) 60ms both;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="stVerticalBlockBorderWrapper"])
+  [data-testid="column"]:nth-child(2) [data-testid="stVerticalBlockBorderWrapper"] {
+  animation: ag-fade-up 420ms var(--ease-out-expo) 130ms both;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="stVerticalBlockBorderWrapper"])
+  [data-testid="column"]:nth-child(3) [data-testid="stVerticalBlockBorderWrapper"] {
+  animation: ag-fade-up 420ms var(--ease-out-expo) 200ms both;
+}
+
+/* ── Metric cards: staggered entrance per row ───────────────────────── */
+[data-testid="stHorizontalBlock"]:has([data-testid="metric-container"])
+  [data-testid="column"]:nth-child(1) [data-testid="metric-container"] {
+  animation: ag-fade-up 280ms var(--ease-out-expo) 0ms both;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="metric-container"])
+  [data-testid="column"]:nth-child(2) [data-testid="metric-container"] {
+  animation: ag-fade-up 280ms var(--ease-out-expo) 55ms both;
+}
+[data-testid="stHorizontalBlock"]:has([data-testid="metric-container"])
+  [data-testid="column"]:nth-child(3) [data-testid="metric-container"] {
+  animation: ag-fade-up 280ms var(--ease-out-expo) 110ms both;
+}
+
+/* ── Verdict box: the hero reveal — the moment that matters most ─────── */
+.verdict-good, .verdict-ok, .verdict-bad {
+  animation: ag-reveal 400ms var(--ease-out-expo) both;
+}
+
+/* ── Alert / info / warning boxes ──────────────────────────────────── */
+[data-testid="stAlert"] {
+  animation: ag-fade-up 260ms var(--ease-out-expo) 80ms both;
+}
+
+/* ── Expander content: fade up when opened ──────────────────────────── */
+[data-testid="stExpanderDetails"] {
+  animation: ag-fade-up 220ms var(--ease-out-quart) both;
+}
+
+/* ── Sidebar: fade in on first load ─────────────────────────────────── */
+[data-testid="stSidebar"] {
+  animation: ag-fade-in 450ms var(--ease-out-quart) both;
+}
+
+/* ── Button press: tactile feedback ─────────────────────────────────── */
+.stButton > button:active {
+  transform: translateY(0) scale(0.96) !important;
+  transition: transform 80ms ease !important;
+}
+
+/* ── Reduced motion: WCAG 2.1 AA compliance ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-  .js-plotly-plot, .js-plotly-plot *, iframe,
-  [data-testid="stIFrame"]          { direction: ltr !important; }
-  [data-baseweb="slider"] [role="slider"] { direction: ltr !important; }
-  [data-testid="stDataFrameContainer"],
-  [data-testid="stDataFrameContainer"] * { direction: ltr !important; text-align: left !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -999,7 +1162,7 @@ with st.sidebar:
     st.markdown("""
     <div dir="rtl" style="text-align:center; padding:16px 0 12px;">
       <span style="font-size:2.2rem;">🏠</span><br>
-      <b style="font-size:1.1rem; color:#006AFF;">יועץ נדל"ן חכם</b>
+      <b style="font-size:1.1rem; color:oklch(27% 0.12 155);">יועץ נדל"ן חכם</b>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
@@ -1007,7 +1170,6 @@ with st.sidebar:
     page = st.radio(
         "ניווט:",
         [
-            "🏠 עמוד הבית",
             "🔍 מצא אזור להשקעה",
             "🏡 בדוק נכס ספציפי",
             "📊 עיין בנכסים ביישוב",
@@ -1025,272 +1187,13 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 0 — HOME
-# ══════════════════════════════════════════════════════════════════════════════
-if page == "🏠 עמוד הבית":
 
-    st.markdown("""
-    <div dir="rtl" style="
-      background:linear-gradient(135deg,#006AFF 0%,#1277E1 100%);
-      color:white; padding:32px 40px; border-radius:12px; margin-bottom:24px; text-align:right;
-      box-shadow:0 4px 16px rgba(0,106,255,0.20);
-    ">
-      <h1 style="margin:0;font-size:2rem;font-weight:700;letter-spacing:-0.5px;">🏠 יועץ נדל"ן חכם</h1>
-      <p style="margin:10px 0 0;opacity:0.88;font-size:1rem;font-weight:400;line-height:1.5;">
-        כלי חינמי לניתוח השקעות נדל"ן בישראל — מבוסס נתוני רשות המיסים ומודל בינה מלאכותית
-      </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    rtl("<h3>🚀 במה הכלי יכול לעזור לך?</h3>")
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        with st.container(border=True):
-            rtl("""
-            <h4>🔍 מצא אזור להשקעה</h4>
-            <p>לא בטוח איפה לחפש?</p>
-            <p>הכנס את <strong>התקציב שלך</strong> ומה חשוב לך יותר —
-            לקבל שכ"ד חודשי או שהנכס יעלה בערך לאורך זמן.
-            הכלי ימליץ על <strong>האזורים הטובים ביותר</strong> עבורך.</p>
-            """)
-            if st.button("התחל לחפש ←", key="go_find", use_container_width=True):
-                st.session_state["nav_page"] = "🔍 מצא אזור להשקעה"
-                st.rerun()
-
-    with c2:
-        with st.container(border=True):
-            rtl("""
-            <h4>🏡 בדוק נכס ספציפי</h4>
-            <p>מצאת דירה שמעניינת אותך?</p>
-            <p>הכנס את <strong>פרטי הנכס והמחיר המבוקש</strong> —
-            הכלי יגיד לך אם המחיר הוגן,
-            ויציג עסקאות דומות להשוואה.</p>
-            """)
-            if st.button("בדוק נכס ←", key="go_check", use_container_width=True):
-                st.session_state["nav_page"] = "🏡 בדוק נכס ספציפי"
-                st.rerun()
-
-    with c3:
-        with st.container(border=True):
-            rtl("""
-            <h4>📊 עיין בנכסים ביישוב</h4>
-            <p>רוצה לראות מה נמכר ובכמה?</p>
-            <p>בחר <strong>עיר</strong> וסנן לפי גודל וחדרים —
-            כל העסקאות מדורגות לפי ציון כדאיות,
-            כדי שתוכל להשוות בקלות.</p>
-            """)
-            if st.button("עיין ביישוב ←", key="go_browse", use_container_width=True):
-                st.session_state["nav_page"] = "📊 עיין בנכסים ביישוב"
-                st.rerun()
-
-    st.markdown("---")
-
-    # ── Navigation Map ────────────────────────────────────────────────────────
-    rtl('<h2>🗺️ מפת ניווט — מאיפה מתחילים?</h2>')
-    rtl('<p style="color:#555;">בחר את המצב שמתאים לך — ותדע בדיוק לאן ללכת:</p>')
-
-    st.markdown("""
-    <div dir="rtl" style="display:flex; gap:16px; margin:16px 0 24px; flex-wrap:wrap;">
-
-      <div style="flex:1; min-width:220px; background:#EAF7EE; border:2px solid #1A9E3F; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(26,158,63,0.08);">
-        <div style="font-size:2rem; text-align:center;">🆕</div>
-        <h4 style="text-align:center; color:#1A9E3F; margin:8px 0 14px; font-weight:700;">אני חדש,<br>לא יודע מאיפה להתחיל</h4>
-        <div>
-          <div style="background:#1A9E3F; color:white; border-radius:6px; padding:9px 14px; margin:5px 0; text-align:right; font-weight:600;">① 🔍 מצא אזור להשקעה</div>
-          <div style="color:#696969; font-size:0.82rem; text-align:right; padding:2px 14px 6px;">הכנס תקציב ← קבל המלצות על ערים</div>
-          <div style="text-align:center; font-size:1.3rem; color:#1A9E3F; line-height:1;">↓</div>
-          <div style="background:#1A9E3F; color:white; border-radius:6px; padding:9px 14px; margin:5px 0; opacity:0.85; text-align:right; font-weight:600;">② 🏡 בדוק נכס ספציפי</div>
-          <div style="color:#696969; font-size:0.82rem; text-align:right; padding:2px 14px 6px;">הכנס פרטי הדירה ← בדוק אם המחיר הוגן</div>
-          <div style="text-align:center; font-size:1.3rem; color:#1A9E3F; line-height:1;">↓</div>
-          <div style="background:#1A9E3F; color:white; border-radius:6px; padding:9px 14px; margin:5px 0; opacity:0.70; text-align:right; font-weight:600;">③ 📊 עיין בנכסים ביישוב</div>
-          <div style="color:#696969; font-size:0.82rem; text-align:right; padding:2px 14px;">ראה מה נמכר בפועל והשווה</div>
-        </div>
-      </div>
-
-      <div style="flex:1; min-width:220px; background:#EBF3FF; border:2px solid #006AFF; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,106,255,0.08);">
-        <div style="font-size:2rem; text-align:center;">🏡</div>
-        <h4 style="text-align:center; color:#006AFF; margin:8px 0 14px; font-weight:700;">מצאתי דירה ספציפית<br>שמעניינת אותי</h4>
-        <div>
-          <div style="background:#006AFF; color:white; border-radius:6px; padding:9px 14px; margin:5px 0; text-align:right; font-weight:600;">① 🏡 בדוק נכס ספציפי</div>
-          <div style="color:#696969; font-size:0.82rem; text-align:right; padding:2px 14px 6px;">הכנס עיר, מחיר, שטח, חדרים, קומה</div>
-          <div style="text-align:center; font-size:1.3rem; color:#006AFF; line-height:1;">↓</div>
-          <div style="background:#006AFF; color:white; border-radius:6px; padding:9px 14px; margin:5px 0; opacity:0.85; text-align:right; font-weight:600;">② 📊 עיין בנכסים ביישוב</div>
-          <div style="color:#696969; font-size:0.82rem; text-align:right; padding:2px 14px;">השווה לעסקאות אמיתיות באותה עיר</div>
-        </div>
-        <div style="margin-top:16px; padding:10px 14px; background:#D6E9FF; border-radius:6px;">
-          <p style="font-size:0.82rem; color:#003D99; margin:0; text-align:right;">💡 טיפ: אחרי שתקבל ציון כדאיות, לחץ על "עיין בנכסים ביישוב" כדי לראות כמה שילמו שכנים על דירות דומות</p>
-        </div>
-      </div>
-
-      <div style="flex:1; min-width:220px; background:#E5F7F8; border:2px solid #00A2AD; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,162,173,0.08);">
-        <div style="font-size:2rem; text-align:center;">📊</div>
-        <h4 style="text-align:center; color:#00A2AD; margin:8px 0 14px; font-weight:700;">רוצה לסקור מחירים<br>בעיר מסוימת</h4>
-        <div>
-          <div style="background:#00A2AD; color:white; border-radius:6px; padding:9px 14px; margin:5px 0; text-align:right; font-weight:600;">① 📊 עיין בנכסים ביישוב</div>
-          <div style="color:#696969; font-size:0.82rem; text-align:right; padding:2px 14px;">בחר עיר ← סנן לפי גודל, חדרים, שנה</div>
-        </div>
-        <div style="margin-top:16px; padding:10px 14px; background:#CCF0F2; border-radius:6px;">
-          <p style="font-size:0.82rem; color:#005F68; margin:0; text-align:right;">💡 טיפ: מומלץ לסנן לשנתיים האחרונות — מחירים ישנים לא תמיד משקפים את השוק היום</p>
-        </div>
-      </div>
-
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # ── Quick reference legend ─────────────────────────────────────────────────
-    with st.expander("📌 מה כל עמוד עושה — טבלת עזר מהירה"):
-        rtl("""
-        <table style="width:100%; border-collapse:collapse; font-size:0.93rem;">
-          <tr style="background:#F5F5F5;">
-            <th style="padding:10px; border:1px solid #E0E0E0; text-align:right;">עמוד</th>
-            <th style="padding:10px; border:1px solid #E0E0E0; text-align:right;">שאלה שהוא עונה</th>
-            <th style="padding:10px; border:1px solid #E0E0E0; text-align:right;">מה מכניסים</th>
-            <th style="padding:10px; border:1px solid #E0E0E0; text-align:right;">מה מקבלים</th>
-          </tr>
-          <tr>
-            <td style="padding:10px; border:1px solid #E0E0E0;"><strong>🔍 מצא אזור</strong></td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">באיזו עיר כדאי לחפש?</td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">תקציב + מטרה (שכ"ד / ערך)</td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">רשימת ערים עם ציון כדאיות + גרף</td>
-          </tr>
-          <tr style="background:#fafafa;">
-            <td style="padding:10px; border:1px solid #E0E0E0;"><strong>🏡 בדוק נכס</strong></td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">האם המחיר של הדירה הזו הוגן?</td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">עיר + מחיר + שטח + חדרים + קומה</td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">ציון 0–100 + פירוט + עסקאות דומות</td>
-          </tr>
-          <tr>
-            <td style="padding:10px; border:1px solid #E0E0E0;"><strong>📊 עיין ביישוב</strong></td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">בכמה נמכרו דירות בעיר הזו?</td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">עיר + פילטרים (גודל / שנה / חדרים)</td>
-            <td style="padding:10px; border:1px solid #E0E0E0;">טבלת עסקאות אמיתיות + גרף מחירים</td>
-          </tr>
-        </table>
-        """)
-
-    st.markdown("---")
-    rtl('<h2>📚 מילון מושגים — הסבר על מונחי נדל"ן</h2>')
-    rtl('<p style="color:#555">לחץ על כל מושג כדי לקרוא הסבר פשוט</p>')
-
-    with st.expander("🎯 ציון כדאיות — מה זה ולמה חשוב?", expanded=True):
-        rtl("""
-        <p><strong>ציון כדאיות</strong> הוא מספר בין <strong>0 ל-100</strong> שמסכם
-        <strong>כמה כדאי לקנות נכס מסוים</strong>.</p>
-        <table style="width:100%; border-collapse:collapse; margin:10px 0;">
-          <tr style="background:#F5F5F5;">
-            <th style="padding:8px; border:1px solid #E0E0E0; text-align:right;">ציון</th>
-            <th style="padding:8px; border:1px solid #E0E0E0; text-align:right;">צבע</th>
-            <th style="padding:8px; border:1px solid #E0E0E0; text-align:right;">משמעות</th>
-            <th style="padding:8px; border:1px solid #E0E0E0; text-align:right;">מה לעשות?</th>
-          </tr>
-          <tr>
-            <td style="padding:8px; border:1px solid #E0E0E0;">70–100</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">🟢 ירוק</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">כדאי מאוד</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">מומלץ לבחון ברצינות</td>
-          </tr>
-          <tr style="background:#fafafa;">
-            <td style="padding:8px; border:1px solid #E0E0E0;">45–69</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">🟡 צהוב</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">סביר, דורש בדיקה</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">בדוק לעומק לפני החלטה</td>
-          </tr>
-          <tr>
-            <td style="padding:8px; border:1px solid #E0E0E0;">0–44</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">🔴 אדום</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">לא מומלץ</td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">המחיר כנראה גבוה מדי</td>
-          </tr>
-        </table>
-        <p><strong>איך מחשבים את הציון?</strong><br>
-        💰 <strong>60%</strong> — האם המחיר הוגן? (הכי חשוב)<br>
-        🏙️ <strong>25%</strong> — איכות האזור (מדד סוציו-אקונומי)<br>
-        💧 <strong>15%</strong> — קל לקנות ולמכור באזור? (נזילות)</p>
-        """)
-
-    with st.expander("💰 מחיר חזוי ופער — מה ההבדל?"):
-        rtl("""
-        <p><strong>מחיר חזוי</strong> = מה מחיר ה"שוק ההוגן" לפי המודל שלנו.<br>
-        המודל למד מ-6,609 עסקאות אמיתיות שנמכרו בישראל.</p>
-        <hr style="border-color:#eee; margin:10px 0;">
-        <p><strong>פער</strong> = ההפרש בין מה שאתה משלם לבין מה שהמודל חושב שזה שווה:</p>
-        <ul>
-          <li>✅ <strong>פער חיובי (+)</strong> → אתה משלם <strong>פחות</strong> מהשוק → <strong>הזדמנות!</strong></li>
-          <li>⚠️ <strong>פער קרוב לאפס</strong> → מחיר הוגן</li>
-          <li>❌ <strong>פער שלילי (−)</strong> → אתה משלם <strong>יותר</strong> מהשוק → מחיר גבוה</li>
-        </ul>
-        <p><strong>דוגמה:</strong> מחיר חזוי 2,200,000 ₪, מחיר מבוקש 2,000,000 ₪ → פער +10% → עסקה טובה!</p>
-        """)
-
-    with st.expander("📈 מגמה שנתית — מה זה אומר?"):
-        rtl("""
-        <p><strong>מגמה שנתית</strong> = כמה אחוזים השתנו המחירים בעיר הזו בכל שנה (בממוצע).</p>
-        <ul>
-          <li>📈 <strong>+5% בשנה</strong> → המחירים עלו — טוב אם אתה מחפש שהנכס יעלה בערך</li>
-          <li>📉 <strong>−2% בשנה</strong> → המחירים ירדו — כדאי לשאול למה</li>
-          <li>➡️ <strong>0%</strong> → מחירים יציבים — פחות סיכון, פחות פוטנציאל</li>
-        </ul>
-        <p>מגמה מהעבר לא מבטיחה את העתיד, אבל היא אינדיקטור חשוב.</p>
-        """)
-
-    with st.expander("🏙️ מדד סוציו-אקונומי — למה זה משנה?"):
-        rtl("""
-        <p><strong>מדד סוציו-אקונומי</strong> = מדד שמשקף את <strong>רמת החיים</strong> ביישוב:
-        הכנסות ממוצעות, רמת השכלה, שיעור תעסוקה ועוד. (מקור: למ"ס)</p>
-        <table style="width:100%; border-collapse:collapse; margin:10px 0;">
-          <tr style="background:#F5F5F5;">
-            <th style="padding:8px; border:1px solid #E0E0E0; text-align:right;">מדד</th>
-            <th style="padding:8px; border:1px solid #E0E0E0; text-align:right;">משמעות לנדל"ן</th>
-          </tr>
-          <tr>
-            <td style="padding:8px; border:1px solid #E0E0E0;"><strong>גבוה</strong></td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">אזור חזק כלכלית → מחירים יציבים → פחות סיכון</td>
-          </tr>
-          <tr style="background:#fafafa;">
-            <td style="padding:8px; border:1px solid #E0E0E0;"><strong>בינוני</strong></td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">איזון בין יציבות לפוטנציאל</td>
-          </tr>
-          <tr>
-            <td style="padding:8px; border:1px solid #E0E0E0;"><strong>נמוך</strong></td>
-            <td style="padding:8px; border:1px solid #E0E0E0;">פוטנציאל לעלייה → אבל גם יותר סיכון</td>
-          </tr>
-        </table>
-        """)
-
-    with st.expander("💧 נזילות שוק — מה זה ולמה חשוב?"):
-        rtl("""
-        <p><strong>נזילות שוק</strong> = כמה קל <strong>לקנות ולמכור</strong> נכסים באזור.</p>
-        <ul>
-          <li>הרבה עסקאות → שוק נזיל → קל למצוא קונים כשתרצה למכור</li>
-          <li>מעט עסקאות → קשה יותר למכור → הכסף יכול להיות "תקוע"</li>
-        </ul>
-        <p>אם תצטרך למכור בדחיפות, בשוק לא נזיל אולי תצטרך להוריד מחיר משמעותית.</p>
-        """)
-
-    with st.expander("🤖 המודל — איך הוא עובד?"):
-        rtl("""
-        <p><strong>המודל:</strong> XGBoost — סוג של בינה מלאכותית.</p>
-        <p><strong>מה הוא למד?</strong> מ-6,609 עסקאות דירות אמיתיות מרשות המיסים:
-        שטח, חדרים, קומה, עיר, שכונה, רחוב, מדד סוציו ועוד.</p>
-        <p><strong>כמה הוא מדויק?</strong><br>
-        R² = 0.741 → מסביר 74% מהשינויים במחיר<br>
-        שגיאה ממוצעת: ~607,000 ₪</p>
-        <p>המודל טוב לזהות אם נכס <strong>מאוד יקר</strong> או <strong>מאוד זול</strong>,
-        אבל לא מדויק לסכומים קטנים. השתמש בו כאינדיקטור.</p>
-        """)
-
-    st.info("💡 טיפ: אם אתה חדש בנדל\"ן, התחל עם \"מצא אזור להשקעה\" — הכנס תקציב וקבל המלצות מיידיות.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — FIND AREA
 # ══════════════════════════════════════════════════════════════════════════════
-elif page == "🔍 מצא אזור להשקעה":
+if page == "🔍 מצא אזור להשקעה":
 
     rtl('<h1>🔍 מצא אזור להשקעה</h1>')
 
@@ -2253,7 +2156,7 @@ elif page == "📊 עיין בנכסים ביישוב":
                     df_filtered, x="dealAmount", nbins=30,
                     title=f"התפלגות מחירים — {selected_city}",
                     labels={"dealAmount": "מחיר (₪)", "count": "כמות עסקאות"},
-                    height=350, color_discrete_sequence=["#006AFF"],
+                    height=350, color_discrete_sequence=["#2A5C21"],
                 )
                 fig3.update_layout(margin=dict(t=40, b=20), bargap=0.05)
                 st.plotly_chart(fig3, use_container_width=True)
@@ -2544,9 +2447,9 @@ elif page == "📊 עיין בנכסים ביישוב":
         # ── Empty state — waiting for user to press the load button ──────────
         else:
             rtl("""
-            <div dir="rtl" style="background:#EBF3FF;border:1px solid #006AFF;border-radius:10px;
+            <div dir="rtl" style="background:oklch(96% 0.015 155);border:1px solid oklch(27% 0.12 155);border-radius:10px;
                  padding:20px 24px;text-align:right;margin:16px 0;">
-              <p style="font-size:1.1rem;font-weight:700;color:#006AFF;">📡 מצב בזמן אמת</p>
+              <p style="font-size:1.1rem;font-weight:700;color:oklch(27% 0.12 155);">📡 מצב בזמן אמת</p>
               <p>לחץ <strong>טען נתונים מיד2</strong> כדי לשלוף את המודעות הפעילות כעת בעיר שבחרת.</p>
               <p style="color:#555;font-size:0.88rem;">
                 הנתונים נשלפים ישירות מאתר יד2 ועשויים להשתנות בכל רגע.<br>

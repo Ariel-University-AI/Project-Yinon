@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>עיין בנכסים — יועץ נדל"ן חכם</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────────────────────── */
+    :root {
+      --brand-900: oklch(18% 0.09 155);
+      --brand-700: oklch(27% 0.12 155);
+      --brand-500: oklch(40% 0.14 155);
+      --brand-400: oklch(50% 0.15 155);
+      --brand-200: oklch(88% 0.06 155);
+      --brand-100: oklch(96% 0.015 155);
+
+      --ink-900: oklch(13% 0.015 155);
+      --ink-700: oklch(28% 0.025 155);
+      --ink-500: oklch(45% 0.03 155);
+      --ink-400: oklch(56% 0.03 155);
+      --ink-200: oklch(82% 0.018 155);
+      --ink-100: oklch(95% 0.01 155);
+
+      --good:    oklch(50% 0.16 148);
+      --good-bg: oklch(95% 0.04 148);
+      --fair:    oklch(55% 0.14 78);
+      --fair-bg: oklch(96% 0.04 78);
+      --bad:     oklch(52% 0.16 25);
+      --bad-bg:  oklch(96% 0.04 25);
+
+      --bg:      oklch(99.5% 0.003 155);
+      --surface: oklch(97% 0.008 155);
+
+      --font-display: 'Noto Serif Hebrew', Georgia, serif;
+      --font-body:    'Rubik', system-ui, sans-serif;
+
+      --r-sm: 4px; --r-md: 8px; --r-lg: 14px;
+      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out-expo:  cubic-bezier(0.16, 1, 0.3,  1);
+      --z-nav:      100;
+      --z-controls: 90;
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.65;
+      direction: rtl;
+      text-align: right;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 300;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: var(--z-nav);
+      background: rgba(253,253,252,0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--ink-200);
+      transition: box-shadow 0.3s var(--ease-out-quint);
+    }
+    .nav.is-scrolled { box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07); }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 24px;
+      height: 60px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 9px;
+      font-family: var(--font-display); font-weight: 400; font-size: 1rem;
+      color: var(--ink-900); text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .nav-logo:hover { opacity: 0.75; }
+    .nav-logo-icon {
+      width: 32px; height: 32px; background: var(--brand-700);
+      border-radius: var(--r-md); display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 1rem;
+    }
+    .nav-back {
+      font-size: 0.85rem; color: var(--ink-500); text-decoration: none;
+      display: flex; align-items: center; gap: 5px;
+      transition: color 0.15s;
+    }
+    .nav-back:hover { color: var(--ink-900); }
+
+    /* ── Page ─────────────────────────────────────────────────────────────────── */
+    .page { min-height: 100svh; padding-top: 60px; }
+
+    .page-header {
+      background: var(--brand-700);
+      color: #fff;
+      padding: 40px 24px;
+      animation: headerReveal 0.7s var(--ease-out-quint) 0.05s both;
+    }
+    .page-header-inner { max-width: 1200px; margin: 0 auto; }
+    .page-header h1 {
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      color: #fff; margin-bottom: 8px;
+    }
+    .page-header p { font-size: 0.95rem; color: oklch(86% 0.04 155); max-width: 56ch; }
+
+    /* ── Controls (sticky) ───────────────────────────────────────────────────── */
+    .controls-section {
+      position: sticky;
+      top: 60px;
+      z-index: var(--z-controls);
+      background: var(--bg);
+      border-bottom: 1px solid var(--ink-200);
+      box-shadow: 0 2px 14px oklch(13% 0.015 155 / 0.05);
+      animation: ctrlReveal 0.5s var(--ease-out-quint) 0.15s both;
+    }
+    .controls-inner { max-width: 1200px; margin: 0 auto; padding: 16px 24px 14px; }
+
+    /* City + Mode row */
+    .city-mode-row {
+      display: flex; align-items: flex-end; gap: 16px;
+      flex-wrap: wrap; margin-bottom: 14px;
+    }
+    .city-picker { flex: 0 0 auto; min-width: 220px; max-width: 320px; }
+    .city-label {
+      display: block; font-size: 0.78rem; font-weight: 600;
+      color: var(--ink-500); margin-bottom: 5px; letter-spacing: 0.01em;
+    }
+    .city-input {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid var(--ink-200); border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.9rem;
+      color: var(--ink-900); background: var(--bg);
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .city-input:focus {
+      outline: none; border-color: var(--brand-500);
+      box-shadow: 0 0 0 3px oklch(40% 0.14 155 / 0.12);
+    }
+    .city-input::placeholder { color: var(--ink-400); }
+
+    .mode-tabs {
+      display: flex; gap: 3px;
+      padding: 3px;
+      background: var(--surface);
+      border: 1px solid var(--ink-200);
+      border-radius: var(--r-md);
+    }
+    .mode-tab {
+      padding: 7px 15px;
+      border: none; border-radius: var(--r-sm);
+      font-family: var(--font-body); font-size: 0.875rem; font-weight: 500;
+      color: var(--ink-500); background: none; cursor: pointer;
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+      white-space: nowrap;
+    }
+    .mode-tab.active {
+      background: #fff; color: var(--brand-700);
+      box-shadow: 0 1px 4px oklch(13% 0.015 155 / 0.1);
+    }
+    .mode-tab:not(.active):hover { color: var(--ink-700); background: var(--ink-100); }
+
+    /* Filters bar */
+    .filters-bar {
+      display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 18px;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 5px; }
+    .filter-label {
+      font-size: 0.77rem; font-weight: 600;
+      color: var(--ink-400); letter-spacing: 0.01em;
+    }
+    .range-pair { display: flex; align-items: flex-start; gap: 6px; }
+    .range-field { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .range-sublabel {
+      font-size: 0.68rem; color: var(--ink-400); font-weight: 500;
+      letter-spacing: 0.01em; white-space: nowrap;
+    }
+    .range-sep { margin-top: 9px; }
+    .range-input {
+      width: 74px; padding: 7px 8px;
+      border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
+      font-family: var(--font-body); font-size: 0.875rem;
+      color: var(--ink-900); background: var(--bg);
+      text-align: center; direction: ltr;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .range-input:focus {
+      outline: none; border-color: var(--brand-500);
+      box-shadow: 0 0 0 2px oklch(40% 0.14 155 / 0.1);
+    }
+    .range-input::-webkit-inner-spin-button,
+    .range-input::-webkit-outer-spin-button { opacity: 0.5; }
+    .range-sep { font-size: 0.8rem; color: var(--ink-400); }
+    .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
+    .btn-apply {
+      padding: 8px 18px;
+      background: var(--brand-700); color: #fff;
+      border: none; border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.875rem; font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.2s var(--ease-out-quint);
+    }
+    .btn-apply:hover { background: var(--brand-500); transform: translateY(-1px); }
+    .btn-apply:active { transform: scale(0.97); transition-duration: 0.08s; }
+    .btn-clear {
+      padding: 8px 12px;
+      background: none; color: var(--ink-500);
+      border: 1.5px solid var(--ink-200); border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.875rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-clear:hover { color: var(--ink-700); border-color: var(--ink-400); }
+
+    /* Yad2 load bar */
+    .yad2-load-bar {
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 0 2px;
+    }
+    .btn-load-yad2 {
+      padding: 9px 20px;
+      background: oklch(52% 0.16 25); color: #fff;
+      border: none; border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.9rem; font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.2s var(--ease-out-quint);
+    }
+    .btn-load-yad2:hover { background: oklch(45% 0.18 25); transform: translateY(-1px); }
+    .btn-load-yad2:active { transform: scale(0.97); }
+    .btn-load-yad2:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .yad2-hint { font-size: 0.82rem; color: var(--ink-400); }
+
+    /* ── Results ─────────────────────────────────────────────────────────────── */
+    .results-outer { max-width: 1200px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* Stats strip */
+    .stats-strip {
+      display: flex; gap: 1px;
+      background: var(--ink-200);
+      border: 1px solid var(--ink-200);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin: 24px 0 20px;
+      animation: statsReveal 0.5s var(--ease-out-quint) both;
+    }
+    .stat-tile {
+      flex: 1; min-width: 0;
+      background: var(--surface);
+      padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .stat-num {
+      font-family: var(--font-display);
+      font-size: clamp(1.05rem, 2.2vw, 1.45rem);
+      font-weight: 400;
+      color: var(--brand-700);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stat-lbl { font-size: 0.77rem; color: var(--ink-500); font-weight: 500; }
+
+    /* ── States ──────────────────────────────────────────────────────────────── */
+    .state-box {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 12px; padding: 64px 24px; text-align: center;
+    }
+    .state-icon { font-size: 2.4rem; }
+    .state-box h3 { font-size: 1.15rem; font-weight: 400; color: var(--ink-700); }
+    .state-box p  { font-size: 0.9rem; color: var(--ink-400); max-width: 38ch; }
+
+    .skeleton-wrap { padding: 24px 0; }
+    .skeleton-row {
+      height: 46px;
+      background: linear-gradient(90deg,
+        var(--surface) 25%, var(--ink-100) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      border-radius: var(--r-sm);
+      margin-bottom: 4px;
+    }
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
+    }
+
+    .state-err-box {
+      background: var(--bad-bg);
+      border: 1px solid oklch(70% 0.1 25);
+      border-radius: var(--r-lg);
+      padding: 20px 24px;
+      margin: 24px 0;
+    }
+    .state-err-box h3 {
+      font-size: 0.95rem; color: var(--bad);
+      font-family: var(--font-body); font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .state-err-box p { font-size: 0.875rem; color: var(--ink-700); }
+
+    /* ── Histogram ────────────────────────────────────────────────────────────── */
+    .histogram-section { margin: 0 0 16px; }
+    .histogram-label {
+      font-size: 0.77rem; color: var(--ink-400);
+      font-weight: 500; margin-bottom: 8px;
+    }
+
+    /* ── Result meta ─────────────────────────────────────────────────────────── */
+    .result-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+    }
+    .result-count-text { font-size: 0.875rem; color: var(--ink-500); }
+
+    /* ── Table ────────────────────────────────────────────────────────────────── */
+    .table-scroll-wrap {
+      width: 100%; overflow-x: auto;
+      border: 1px solid var(--ink-200); border-radius: var(--r-lg);
+    }
+    .props-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.875rem; min-width: 820px;
+    }
+    .props-table thead {
+      background: var(--surface);
+      border-bottom: 1.5px solid var(--ink-200);
+    }
+    .props-table th {
+      padding: 11px 14px;
+      font-weight: 600; font-size: 0.775rem;
+      color: var(--ink-500);
+      white-space: nowrap;
+      text-align: right;
+      letter-spacing: 0.015em;
+    }
+    .props-table th.sortable { cursor: pointer; user-select: none; }
+    .props-table th.sortable:hover { color: var(--ink-700); }
+    .th-sort-icon {
+      display: inline-block; margin-right: 3px;
+      font-size: 0.68rem; opacity: 0.35;
+      transition: opacity 0.15s;
+    }
+    .props-table th.sort-active { color: var(--brand-700); }
+    .props-table th.sort-active .th-sort-icon { opacity: 1; }
+
+    .props-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--ink-100);
+      color: var(--ink-700);
+      text-align: right;
+      vertical-align: middle;
+    }
+    .props-table tbody tr:last-child td { border-bottom: none; }
+    .props-table tbody tr { transition: background 0.1s; }
+    .props-table tbody tr:hover td { background: var(--brand-100); }
+
+    /* Row entrance */
+    .props-table tbody tr.row-animated {
+      animation: rowReveal 0.38s var(--ease-out-quint) calc(var(--ri, 0) * 28ms) both;
+    }
+    @keyframes rowReveal {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Address cell */
+    .addr-main { font-weight: 500; color: var(--ink-900); line-height: 1.25; }
+    .addr-sub  { font-size: 0.77rem; color: var(--ink-400); margin-top: 2px; }
+
+    /* Number cells */
+    .td-num {
+      font-variant-numeric: tabular-nums;
+      direction: ltr; text-align: left;
+      white-space: nowrap;
+    }
+
+    /* Viability */
+    .viab-cell { display: flex; flex-direction: column; gap: 5px; min-width: 64px; }
+    .viab-num { font-size: 0.9rem; font-weight: 700; }
+    .viab-num.viab-good { color: var(--good); }
+    .viab-num.viab-fair { color: var(--fair); }
+    .viab-num.viab-low  { color: var(--bad);  }
+    .viab-bar-track { height: 3px; border-radius: 2px; background: var(--ink-200); overflow: hidden; }
+    .viab-bar { height: 100%; border-radius: 2px; }
+    .viab-bar.viab-good { background: var(--good); }
+    .viab-bar.viab-fair { background: var(--fair); }
+    .viab-bar.viab-low  { background: var(--bad);  }
+
+    /* Action button */
+    .btn-action {
+      padding: 5px 10px;
+      font-size: 0.78rem; font-weight: 600;
+      background: none;
+      border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
+      color: var(--ink-500);
+      cursor: pointer; white-space: nowrap;
+      text-decoration: none; display: inline-block;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-action:hover {
+      border-color: var(--brand-500);
+      color: var(--brand-700);
+      background: var(--brand-100);
+    }
+
+    /* ── Keyframes ───────────────────────────────────────────────────────────── */
+    @keyframes headerReveal {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes ctrlReveal {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes statsReveal {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Mobile ──────────────────────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .controls-inner { padding: 14px 16px 12px; }
+      .results-outer  { padding-left: 12px; padding-right: 12px; }
+      .city-mode-row  { flex-direction: column; align-items: stretch; gap: 12px; }
+      .city-picker    { max-width: 100%; }
+      .mode-tabs      { align-self: flex-start; }
+      .filters-bar    { gap: 10px 14px; }
+      .range-input    { width: 64px; }
+      .stat-tile      { padding: 12px 14px; }
+    }
+
+    /* ── Reduced motion ──────────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav" id="mainNav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-icon">🏠</div>
+        <span>יועץ נדל"ן חכם</span>
+      </a>
+      <a href="/" class="nav-back">← חזור לדף הבית</a>
+    </div>
+  </nav>
+
+  <div class="page">
+    <header class="page-header">
+      <div class="page-header-inner">
+        <h1>עיין בנכסים</h1>
+        <p>ניתוח שוק לפי עסקאות היסטוריות מרשות המיסים ומודעות חיות מיד2</p>
+      </div>
+    </header>
+
+    <!-- Controls (sticky) -->
+    <div class="controls-section">
+      <div class="controls-inner">
+        <div class="city-mode-row">
+          <div class="city-picker">
+            <label class="city-label" for="cityInput">עיר / יישוב</label>
+            <input type="text" class="city-input" id="cityInput"
+                   list="citiesDatalist" placeholder="הקלד שם עיר..."
+                   autocomplete="off" spellcheck="false" />
+            <datalist id="citiesDatalist"></datalist>
+          </div>
+          <div style="flex:1 1 0"></div>
+          <div class="mode-tabs" id="modeTabs">
+            <button class="mode-tab active" data-mode="yad2">🔴 יד2 בזמן אמת</button>
+            <button class="mode-tab" data-mode="historical">📂 נתונים היסטוריים</button>
+          </div>
+        </div>
+
+        <div class="filters-bar" id="filtersBar">
+          <div class="filter-group">
+            <span class="filter-label">מחיר (₪ מ')</span>
+            <div class="range-pair">
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMinPrice" min="0" max="200" step="0.1" placeholder="0">
+                <span class="range-sublabel">מינימום</span>
+              </div>
+              <span class="range-sep">—</span>
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMaxPrice" min="0" max="200" step="0.1" placeholder="200">
+                <span class="range-sublabel">מקסימום</span>
+              </div>
+            </div>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">חדרים</span>
+            <div class="range-pair">
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMinRooms" min="1" max="10" step="0.5" placeholder="1">
+                <span class="range-sublabel">מינימום</span>
+              </div>
+              <span class="range-sep">—</span>
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMaxRooms" min="1" max="10" step="0.5" placeholder="10">
+                <span class="range-sublabel">מקסימום</span>
+              </div>
+            </div>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">שטח (מ"ר)</span>
+            <div class="range-pair">
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMinArea" min="0" max="1000" step="5" placeholder="0">
+                <span class="range-sublabel">מינימום</span>
+              </div>
+              <span class="range-sep">—</span>
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMaxArea" min="0" max="1000" step="5" placeholder="1000">
+                <span class="range-sublabel">מקסימום</span>
+              </div>
+            </div>
+          </div>
+          <div class="filter-group" id="fgYear">
+            <span class="filter-label">שנה</span>
+            <div class="range-pair">
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMinYear" min="1990" max="2030" step="1" placeholder="2010">
+                <span class="range-sublabel">מינימום</span>
+              </div>
+              <span class="range-sep">—</span>
+              <div class="range-field">
+                <input type="number" class="range-input" id="fMaxYear" min="1990" max="2030" step="1" placeholder="2025">
+                <span class="range-sublabel">מקסימום</span>
+              </div>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn-apply" id="applyBtn">עדכן תוצאות</button>
+            <button class="btn-clear"  id="clearBtn">נקה פילטרים</button>
+          </div>
+        </div>
+
+        <div class="yad2-load-bar" id="yad2LoadBar" style="display:none">
+          <button class="btn-load-yad2" id="loadYad2Btn">🔄 טען מודעות מיד2</button>
+          <span class="yad2-hint">נתונים חיים — עשוי לקחת עד 20 שניות</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-outer">
+
+      <!-- Stats strip -->
+      <div class="stats-strip" id="statsStrip" style="display:none">
+        <div class="stat-tile">
+          <span class="stat-num" id="statCount">—</span>
+          <span class="stat-lbl" id="statCountLbl">עסקאות</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-num" id="statAvgPrice">—</span>
+          <span class="stat-lbl">מחיר ממוצע</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-num" id="statAvgArea">—</span>
+          <span class="stat-lbl">שטח ממוצע</span>
+        </div>
+        <div class="stat-tile">
+          <span class="stat-num" id="statAvgViab">—</span>
+          <span class="stat-lbl">ציון כדאיות ממוצע</span>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="state-box" id="stateEmpty">
+        <div class="state-icon">🏘️</div>
+        <h3 id="stateEmptyTitle">בחר עיר להתחלה</h3>
+        <p id="stateEmptyDesc">הזן שם עיר כדי לקבל ניתוח עסקאות ומחירי שוק</p>
+      </div>
+
+      <!-- Loading state -->
+      <div id="stateLoading" style="display:none">
+        <div class="skeleton-wrap">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row" style="animation-delay:0.08s;width:94%"></div>
+          <div class="skeleton-row" style="animation-delay:0.16s;width:97%"></div>
+          <div class="skeleton-row" style="animation-delay:0.24s;width:91%"></div>
+          <div class="skeleton-row" style="animation-delay:0.32s;width:96%"></div>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div class="state-err-box" id="stateError" style="display:none">
+        <h3 id="errTitle">שגיאה</h3>
+        <p id="errDetail"></p>
+      </div>
+
+      <!-- Data section -->
+      <div id="dataSection" style="display:none">
+        <div class="histogram-section" id="histogramSection" style="display:none">
+          <div class="histogram-label">התפלגות מחירים &mdash; ציר X: מחיר, ציר Y: כמות עסקאות</div>
+          <div id="histContainer"></div>
+        </div>
+
+        <div class="result-meta">
+          <span class="result-count-text" id="resultCountText"></span>
+        </div>
+
+        <div class="table-scroll-wrap">
+          <table class="props-table">
+            <thead id="propsHead"></thead>
+            <tbody id="propsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+/* ── State ────────────────────────────────────────────────────────────────── */
+let _mode        = 'yad2';
+let _city        = null;
+let _stats       = null;
+let _rawRecords  = [];
+let _records     = [];
+let _sortKey     = 'viability_score';
+let _sortAsc     = false;
+const _validCities = new Set();
+const _allCities   = new Set();
+const _yad2Cities  = new Set();
+
+/* ── DOM refs ─────────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const cityInput    = $('cityInput');
+const fgYear       = $('fgYear');
+const yad2LoadBar  = $('yad2LoadBar');
+const loadYad2Btn  = $('loadYad2Btn');
+const statsStrip   = $('statsStrip');
+const stateEmpty   = $('stateEmpty');
+const stateLoading = $('stateLoading');
+const stateError   = $('stateError');
+const dataSection  = $('dataSection');
+const propsHead    = $('propsHead');
+const propsBody    = $('propsBody');
+
+/* ── Nav shadow ───────────────────────────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  $('mainNav').classList.toggle('is-scrolled', window.scrollY > 10);
+}, { passive: true });
+
+/* ── Column definitions ───────────────────────────────────────────────────── */
+const HIST_COLS = [
+  { key: 'address',         label: 'כתובת',       sortable: false },
+  { key: 'area',            label: 'שטח',          sortable: true  },
+  { key: 'rooms',           label: 'חדרים',        sortable: true  },
+  { key: 'floor',           label: 'קומה',         sortable: true  },
+  { key: 'deal_amount',     label: 'מחיר שנמכר',   sortable: true  },
+  { key: 'predicted',       label: 'מחיר חזוי',    sortable: true  },
+  { key: 'viability_score', label: 'ציון כדאיות',  sortable: true  },
+  { key: 'deal_year',       label: 'שנה',          sortable: true  },
+  { key: 'action',          label: '',             sortable: false },
+];
+const YAD2_COLS = [
+  { key: 'address',         label: 'כתובת',        sortable: false },
+  { key: 'area',            label: 'שטח',           sortable: true  },
+  { key: 'rooms',           label: 'חדרים',         sortable: true  },
+  { key: 'floor',           label: 'קומה',          sortable: true  },
+  { key: 'asking_price',    label: 'מחיר מבוקש',    sortable: true  },
+  { key: 'predicted',       label: 'מחיר חזוי',     sortable: true  },
+  { key: 'viability_score', label: 'ציון כדאיות',   sortable: true  },
+  { key: 'action',          label: '',              sortable: false },
+];
+
+/* ── State display ────────────────────────────────────────────────────────── */
+function showState(which) {
+  stateEmpty.style.display   = which === 'empty'   ? '' : 'none';
+  stateLoading.style.display = which === 'loading' ? '' : 'none';
+  stateError.style.display   = which === 'error'   ? '' : 'none';
+  dataSection.style.display  = which === 'data'    ? '' : 'none';
+  if (which !== 'data') statsStrip.style.display = 'none';
+}
+
+function showError(title, detail) {
+  $('errTitle').textContent  = title  || 'שגיאה';
+  $('errDetail').textContent = detail || '';
+  showState('error');
+}
+
+/* ── Load cities ──────────────────────────────────────────────────────────── */
+async function loadCities() {
+  try {
+    const [allCities, yad2Cities] = await Promise.all([
+      fetch('/api/cities').then(r => r.json()),
+      fetch('/api/yad2-cities').then(r => r.json()),
+    ]);
+    allCities.forEach(c => _allCities.add(c));
+    yad2Cities.forEach(c => _yad2Cities.add(c));
+    updateDatalist(_mode);
+
+    // Auto-load city from ?city= URL param (linked from areas.html)
+    const paramCity = new URLSearchParams(location.search).get('city');
+    if (paramCity && _allCities.has(paramCity)) {
+      cityInput.value = paramCity;
+      if (_mode === 'yad2' && !_yad2Cities.has(paramCity)) {
+        const histTab = document.querySelector('.mode-tab[data-mode="historical"]');
+        if (histTab) histTab.click();
+      }
+      _city = paramCity;
+      onCitySelected(paramCity);
+    }
+  } catch (_) {}
+}
+
+function updateDatalist(mode) {
+  const source = mode === 'yad2' ? _yad2Cities : _allCities;
+  const dl = $('citiesDatalist');
+  _validCities.clear();
+  source.forEach(c => _validCities.add(c));
+  dl.innerHTML = '';
+  [...source].sort().forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    dl.appendChild(opt);
+  });
+}
+
+/* ── City input ───────────────────────────────────────────────────────────── */
+let _cityDebounce = null;
+cityInput.addEventListener('input',  () => { clearTimeout(_cityDebounce); _cityDebounce = setTimeout(onCityInput, 380); });
+cityInput.addEventListener('change', onCityInput);
+
+function onCityInput() {
+  const city = cityInput.value.trim();
+  if (city === _city) return;
+  if (!_validCities.has(city)) return;
+  _city = city;
+  onCitySelected(city);
+}
+
+async function onCitySelected(city) {
+  showState('loading');
+  try {
+    const stats = await fetch(`/api/city-stats?city=${encodeURIComponent(city)}`).then(r => r.json());
+    if (stats.error) { showError('עיר לא נמצאה', stats.error); return; }
+    _stats = stats;
+    setFilterDefaults(stats);
+    if (_mode === 'yad2') {
+      showYad2Idle(city, stats.yad2_supported);
+    } else {
+      await loadHistorical();
+    }
+  } catch (e) {
+    showError('שגיאה בטעינת הנתונים', 'ודא שהשרת פועל ונסה שוב.');
+  }
+}
+
+function showYad2Idle(city, supported) {
+  if (!supported) {
+    showError(`עיר "${city}" אינה נתמכת לחיפוש יד2 כרגע`, 'נסה עיר גדולה יותר, או עבור לנתונים היסטוריים.');
+    return;
+  }
+  $('stateEmptyTitle').textContent = `לחץ "טען מודעות מיד2" לטעינת מודעות עבור ${city}`;
+  $('stateEmptyDesc').textContent  = 'הנתונים נשלפים ישירות מיד2 ועשויים להשתנות בכל רגע';
+  showState('empty');
+}
+
+/* ── Filters ──────────────────────────────────────────────────────────────── */
+function setFilterDefaults(stats) {
+  $('fMinPrice').value = (stats.min_price / 1e6).toFixed(1);
+  $('fMaxPrice').value = (stats.max_price / 1e6).toFixed(1);
+  $('fMinRooms').value = stats.min_rooms;
+  $('fMaxRooms').value = stats.max_rooms;
+  $('fMinArea').value  = stats.min_area;
+  $('fMaxArea').value  = stats.max_area;
+  $('fMinYear').value  = stats.min_year;
+  $('fMaxYear').value  = stats.max_year;
+}
+
+function getFilters() {
+  return {
+    min_price: (parseFloat($('fMinPrice').value) || 0)   * 1e6,
+    max_price: (parseFloat($('fMaxPrice').value) || 200) * 1e6,
+    min_rooms:  parseFloat($('fMinRooms').value) || 0,
+    max_rooms:  parseFloat($('fMaxRooms').value) || 20,
+    min_area:   parseFloat($('fMinArea').value)  || 0,
+    max_area:   parseFloat($('fMaxArea').value)  || 9999,
+    min_year:   parseInt($('fMinYear').value)    || 1900,
+    max_year:   parseInt($('fMaxYear').value)    || 2100,
+  };
+}
+
+function applyYad2Filters(records) {
+  const f = getFilters();
+  return records.filter(r =>
+    r.asking_price >= f.min_price && r.asking_price <= f.max_price &&
+    (r.rooms == null || (r.rooms >= f.min_rooms && r.rooms <= f.max_rooms)) &&
+    (r.area  == null || (r.area  >= f.min_area  && r.area  <= f.max_area))
+  );
+}
+
+/* ── Load historical data ─────────────────────────────────────────────────── */
+async function loadHistorical() {
+  if (!_city) return;
+  showState('loading');
+  try {
+    const f = getFilters();
+    const params = new URLSearchParams({
+      city: _city,
+      min_price: f.min_price, max_price: f.max_price,
+      min_rooms: f.min_rooms, max_rooms: f.max_rooms,
+      min_area:  f.min_area,  max_area:  f.max_area,
+      min_year:  f.min_year,  max_year:  f.max_year,
+    });
+    const data = await fetch(`/api/properties?${params}`).then(r => r.json());
+    _rawRecords = data.records || [];
+    _records    = [..._rawRecords];
+    renderResults(_records, 'historical');
+  } catch (e) {
+    showError('שגיאה בטעינת הנתונים', 'ודא שהשרת פועל ונסה שוב.');
+  }
+}
+
+/* ── Load Yad2 data ───────────────────────────────────────────────────────── */
+async function loadYad2() {
+  if (!_city) return;
+  loadYad2Btn.disabled    = true;
+  loadYad2Btn.textContent = '⏳ טוען...';
+  showState('loading');
+  try {
+    const resp = await fetch('/api/yad2-browse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ city: _city, max_pages: 3 }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) {
+      showError('שגיאה בטעינת נתוני יד2', data.error || 'נסה שוב מאוחר יותר.');
+    } else {
+      _rawRecords = data.records || [];
+      _records    = applyYad2Filters(_rawRecords);
+      renderResults(_records, 'yad2');
+    }
+  } catch (e) {
+    showError('שגיאת חיבור ליד2', 'בדוק חיבור לאינטרנט ונסה שוב.');
+  } finally {
+    loadYad2Btn.disabled    = false;
+    loadYad2Btn.textContent = '🔄 טען מחדש';
+  }
+}
+
+/* ── Render results ───────────────────────────────────────────────────────── */
+function renderResults(records, mode) {
+  updateStats(records, mode);
+  renderTableHead(mode);
+  renderTableBody(records, mode, true);
+  showState('data');
+  $('resultCountText').textContent =
+    `${records.length} ${mode === 'historical' ? 'עסקאות' : 'מודעות'} מוצגות`;
+  setTimeout(() => renderHistogram(records, mode), 0);
+}
+
+/* ── Stats strip ──────────────────────────────────────────────────────────── */
+function updateStats(records, mode) {
+  statsStrip.style.display = '';
+  const priceKey = mode === 'historical' ? 'deal_amount' : 'asking_price';
+  const prices   = records.map(r => r[priceKey]).filter(p => p > 0);
+  const areas    = records.map(r => r.area).filter(a => a > 0);
+  const viabs    = records.map(r => r.viability_score).filter(v => v != null);
+  const avgPrice = prices.length ? prices.reduce((a,b)=>a+b,0)/prices.length : 0;
+  const avgArea  = areas.length  ? areas.reduce((a,b)=>a+b,0)/areas.length   : 0;
+  const avgViab  = viabs.length  ? viabs.reduce((a,b)=>a+b,0)/viabs.length   : 0;
+  animNum($('statCount'),    0, records.length, 500, v => Math.round(v).toLocaleString());
+  animNum($('statAvgPrice'), 0, avgPrice,        700, v => '₪' + Math.round(v).toLocaleString());
+  animNum($('statAvgArea'),  0, avgArea,         600, v => Math.round(v) + ' מ"ר');
+  animNum($('statAvgViab'),  0, avgViab,         600, v => v.toFixed(1));
+  $('statCountLbl').textContent = mode === 'historical' ? 'עסקאות' : 'מודעות';
+}
+
+function animNum(el, from, to, dur, fmt) {
+  const t0 = performance.now();
+  (function step(t) {
+    const p    = Math.min((t - t0) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(from + (to - from) * ease);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ── Histogram ────────────────────────────────────────────────────────────── */
+function renderHistogram(records, mode) {
+  const priceKey  = mode === 'historical' ? 'deal_amount' : 'asking_price';
+  const prices    = records.map(r => r[priceKey]).filter(p => p > 0);
+  const section   = $('histogramSection');
+  const container = $('histContainer');
+  if (prices.length < 5) { section.style.display = 'none'; return; }
+  section.style.display = '';
+
+  const VW = 1000, VH = 130;
+  const ML = 50, MB = 24, MT = 16;
+  const chartW = VW - ML, chartH = VH - MB - MT;
+  const chartBottom = MT + chartH;
+
+  const BINS = Math.min(30, Math.max(8, Math.floor(prices.length / 3)));
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  if (maxP === minP) { section.style.display = 'none'; return; }
+
+  const binW = (maxP - minP) / BINS;
+  const counts = Array(BINS).fill(0);
+  prices.forEach(p => {
+    const i = Math.min(BINS - 1, Math.floor((p - minP) / binW));
+    counts[i]++;
+  });
+  const maxC = Math.max(...counts, 1);
+
+  // Nice round tick intervals
+  function niceTicks(maxVal) {
+    if (maxVal <= 0) return [1];
+    const raw  = maxVal / 4;
+    const mag  = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    const norm = raw / mag;
+    const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+    const interval = step * mag;
+    const ticks = [];
+    for (let t = interval; t <= maxVal * 1.05; t += interval) ticks.push(Math.round(t));
+    return ticks.length ? ticks : [Math.round(maxVal)];
+  }
+  const ticks   = niceTicks(maxC);
+  const topTick = ticks[ticks.length - 1];
+
+  const ink      = 'oklch(50% 0.025 155)';
+  const gridClr  = 'oklch(88% 0.012 155)';
+  const axisClr  = 'oklch(70% 0.02 155)';
+  const barColor = mode === 'historical' ? 'oklch(40% 0.14 155)' : 'oklch(50% 0.15 25)';
+  const font     = 'font-size="11" font-family="Rubik,sans-serif"';
+
+  let svg = '';
+
+  // Y-axis vertical line
+  svg += `<line x1="${ML}" y1="${MT}" x2="${ML}" y2="${chartBottom}" stroke="${axisClr}" stroke-width="1.5"/>`;
+
+  // Y-axis unit label (top-left of chart)
+  svg += `<text x="${ML - 6}" y="${MT - 4}" font-size="10" font-family="Rubik,sans-serif" fill="${ink}" text-anchor="end">כמות</text>`;
+
+  // Gridlines + tick marks + count labels
+  ticks.forEach(count => {
+    const y = chartBottom - (count / topTick) * chartH;
+    svg += `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}" stroke="${gridClr}" stroke-width="1" stroke-dasharray="5,4"/>`;
+    svg += `<line x1="${ML - 5}" y1="${y.toFixed(1)}" x2="${ML}" y2="${y.toFixed(1)}" stroke="${axisClr}" stroke-width="1.5"/>`;
+    svg += `<text x="${ML - 8}" y="${(y + 4).toFixed(1)}" ${font} fill="${ink}" text-anchor="end">${count}</text>`;
+  });
+
+  // Bars (capped at topTick so they never overflow)
+  const barTotal = chartW / BINS;
+  const gap      = Math.max(2, barTotal * 0.1);
+  const bw       = barTotal - gap;
+  counts.forEach((c, i) => {
+    if (c === 0) return;
+    const bh = (c / topTick) * chartH;
+    const rh = Math.max(bh, 3);
+    const x  = ML + i * barTotal + gap / 2;
+    const y  = chartBottom - rh;
+    svg += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${rh.toFixed(1)}" rx="2" fill="${barColor}" opacity="0.83"/>`;
+  });
+
+  // X-axis baseline
+  svg += `<line x1="${ML}" y1="${chartBottom}" x2="${VW}" y2="${chartBottom}" stroke="${axisClr}" stroke-width="1.5"/>`;
+
+  // X-axis price labels
+  const fmtM = n => '₪' + (n / 1e6).toFixed(1) + 'מ\'';
+  const yLbl = VH - 5;
+  svg += `<text x="${ML}" y="${yLbl}" ${font} fill="${ink}">${fmtM(minP)}</text>`;
+  svg += `<text x="${(ML + chartW / 2).toFixed(0)}" y="${yLbl}" ${font} fill="${ink}" text-anchor="middle">${fmtM((minP + maxP) / 2)}</text>`;
+  svg += `<text x="${VW}" y="${yLbl}" ${font} fill="${ink}" text-anchor="end">${fmtM(maxP)}</text>`;
+
+  container.innerHTML = `<svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${VH}px;display:block;">${svg}</svg>`;
+}
+
+/* ── Table head ───────────────────────────────────────────────────────────── */
+function renderTableHead(mode) {
+  const cols = mode === 'historical' ? HIST_COLS : YAD2_COLS;
+  propsHead.innerHTML = '<tr>' + cols.map(col => {
+    const active = col.key === _sortKey;
+    const icon   = active ? (_sortAsc ? '▲' : '▼') : '▼';
+    const cls    = [col.sortable ? 'sortable' : '', active ? 'sort-active' : ''].filter(Boolean).join(' ');
+    const attr   = col.sortable ? `data-sort="${col.key}"` : '';
+    return `<th class="${cls}" ${attr}>${col.label}${col.sortable ? `<span class="th-sort-icon">${icon}</span>` : ''}</th>`;
+  }).join('') + '</tr>';
+}
+
+/* Table head click delegation */
+propsHead.addEventListener('click', e => {
+  const th = e.target.closest('th.sortable');
+  if (!th) return;
+  const key = th.dataset.sort;
+  if (_sortKey === key) { _sortAsc = !_sortAsc; }
+  else { _sortKey = key; _sortAsc = false; }
+  sortRecords(_records);
+  renderTableHead(_mode);
+  renderTableBody(_records, _mode, false);
+  $('resultCountText').textContent =
+    `${_records.length} ${_mode === 'historical' ? 'עסקאות' : 'מודעות'} מוצגות`;
+});
+
+function sortRecords(arr) {
+  arr.sort((a, b) => {
+    const av = a[_sortKey] ?? (_sortAsc ? Infinity : -Infinity);
+    const bv = b[_sortKey] ?? (_sortAsc ? Infinity : -Infinity);
+    return _sortAsc ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0);
+  });
+}
+
+/* ── Table body ───────────────────────────────────────────────────────────── */
+function renderTableBody(records, mode, animate) {
+  propsBody.innerHTML = records.slice(0, 50).map((row, i) => {
+    const cols  = mode === 'historical' ? HIST_COLS : YAD2_COLS;
+    const ri    = animate ? `style="--ri:${i}"` : '';
+    const cls   = animate ? 'row-animated' : '';
+    const cells = cols.map(col => buildCell(col.key, row, mode)).join('');
+    return `<tr class="${cls}" ${ri}>${cells}</tr>`;
+  }).join('');
+}
+
+function buildCell(key, row, mode) {
+  switch (key) {
+    case 'address': {
+      const st = [row.street, row.house_num].filter(Boolean).join(' ') || '—';
+      const hd = row.neighborhood || '';
+      return `<td><div class="addr-main">${esc(st)}</div>${hd ? `<div class="addr-sub">${esc(hd)}</div>` : ''}</td>`;
+    }
+    case 'area':
+      return `<td class="td-num">${row.area != null ? Math.round(row.area) : '—'}</td>`;
+    case 'rooms':
+      return `<td class="td-num">${row.rooms != null ? row.rooms : '—'}</td>`;
+    case 'floor':
+      return `<td class="td-num">${row.floor != null ? row.floor : '—'}</td>`;
+    case 'deal_amount':
+    case 'asking_price': {
+      const p = row[key];
+      return `<td class="td-num">${p != null ? '₪' + Math.round(p).toLocaleString() : '—'}</td>`;
+    }
+    case 'predicted': {
+      const p = row.predicted;
+      return `<td class="td-num">${p != null ? '₪' + Math.round(p).toLocaleString() : '—'}</td>`;
+    }
+    case 'viability_score': {
+      const s = row.viability_score;
+      if (s == null) return '<td>—</td>';
+      const cls = s >= 70 ? 'viab-good' : s >= 45 ? 'viab-fair' : 'viab-low';
+      return `<td><div class="viab-cell">
+        <span class="viab-num ${cls}">${Math.round(s)}</span>
+        <div class="viab-bar-track"><div class="viab-bar ${cls}" style="width:${Math.min(100,s).toFixed(0)}%"></div></div>
+      </div></td>`;
+    }
+    case 'deal_year':
+      return `<td class="td-num">${row.deal_year != null ? row.deal_year : '—'}</td>`;
+    case 'action': {
+      if (mode === 'historical') {
+        const q = new URLSearchParams({
+          city:  _city || '', rooms: row.rooms || '',
+          area:  row.area  || '', floor: row.floor != null ? row.floor : '',
+          price: row.deal_amount || '',
+        });
+        return `<td><a href="/check?${q}" class="btn-action" target="_blank">בדוק נכס</a></td>`;
+      } else {
+        const href = row.yad2_id ? `https://www.yad2.co.il/item/${row.yad2_id}` : '#';
+        return `<td><a href="${href}" class="btn-action" target="_blank" rel="noopener">יד2 ↗</a></td>`;
+      }
+    }
+    default: return '<td>—</td>';
+  }
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/* ── Mode switching ───────────────────────────────────────────────────────── */
+document.querySelectorAll('.mode-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const newMode = btn.dataset.mode;
+    if (newMode === _mode) return;
+    _mode    = newMode;
+    _sortKey = 'viability_score';
+    _sortAsc = false;
+    fgYear.style.display      = newMode === 'historical' ? '' : 'none';
+    yad2LoadBar.style.display = newMode === 'yad2' ? 'flex' : 'none';
+    updateDatalist(newMode);
+    if (_city && !_validCities.has(_city)) {
+      _city = null;
+      cityInput.value = '';
+      _rawRecords = []; _records = [];
+      showState('empty');
+      return;
+    }
+    if (!_city) return;
+    if (newMode === 'yad2') {
+      showYad2Idle(_city, _stats ? _stats.yad2_supported : false);
+    } else {
+      loadHistorical();
+    }
+  });
+});
+
+/* ── Apply / Clear ────────────────────────────────────────────────────────── */
+$('applyBtn').addEventListener('click', () => {
+  if (!_city) return;
+  if (_mode === 'historical') {
+    loadHistorical();
+  } else if (_rawRecords.length > 0) {
+    _records = applyYad2Filters(_rawRecords);
+    renderResults(_records, 'yad2');
+  }
+});
+
+$('clearBtn').addEventListener('click', () => {
+  if (_stats) setFilterDefaults(_stats);
+  if (_mode === 'historical' && _city) loadHistorical();
+  else if (_mode === 'yad2' && _rawRecords.length > 0) {
+    _records = [..._rawRecords];
+    renderResults(_records, 'yad2');
+  }
+});
+
+loadYad2Btn.addEventListener('click', loadYad2);
+
+/* ── Init ─────────────────────────────────────────────────────────────────── */
+// Start in Yad2 mode: hide year filter, show load bar
+fgYear.style.display      = 'none';
+yad2LoadBar.style.display = 'flex';
+showState('empty');
+loadCities();
+</script>
+</body>
+</html>

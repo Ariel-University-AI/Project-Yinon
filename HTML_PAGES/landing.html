@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>יועץ נדל"ן חכם — בדוק נכס לפני שאתה משלם</title>
+  <meta name="description" content="כלי AI חינמי לניתוח מחירי נדל&quot;ן בישראל. מבוסס על 6,609 עסקאות אמיתיות מרשות המיסים. בדוק אם המחיר הוגן תוך שניות." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700;900&family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────────────────────── */
+    :root {
+      /* Brand — deep forest green */
+      --brand-900: oklch(18% 0.09 155);
+      --brand-700: oklch(27% 0.12 155);
+      --brand-500: oklch(40% 0.14 155);
+      --brand-400: oklch(50% 0.15 155);
+      --brand-200: oklch(88% 0.06 155);
+      --brand-100: oklch(96% 0.015 155);
+
+      /* Ink scale */
+      --ink-900: oklch(13% 0.015 155);
+      --ink-700: oklch(28% 0.025 155);
+      --ink-500: oklch(45% 0.03 155);
+      --ink-400: oklch(56% 0.03 155);
+      --ink-200: oklch(82% 0.018 155);
+      --ink-100: oklch(95% 0.01 155);
+
+      /* Semantic */
+      --good:    oklch(50% 0.16 148);
+      --good-bg: oklch(95% 0.04 148);
+      --fair:    oklch(68% 0.14 78);
+      --fair-bg: oklch(96% 0.04 78);
+      --bad:     oklch(52% 0.16 25);
+      --bad-bg:  oklch(96% 0.04 25);
+
+      /* Page */
+      --bg:      oklch(99.5% 0.003 155);
+      --surface: oklch(97% 0.008 155);
+
+      /* Fonts */
+      --font-display: 'Noto Serif Hebrew', Georgia, serif;
+      --font-body:    'Rubik', system-ui, sans-serif;
+
+      /* Radius */
+      --r-sm: 4px;
+      --r-md: 8px;
+      --r-lg: 14px;
+
+      /* Easing — purposeful deceleration curves */
+      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+
+      /* Z-index scale */
+      --z-nav:   100;
+      --z-toast: 200;
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.65;
+      direction: rtl;
+      text-align: right;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--ink-100); }
+    ::-webkit-scrollbar-thumb { background: var(--brand-500); border-radius: 3px; }
+
+    /* ── Type ───────────────────────────────────────────────────────────────── */
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 300;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+    p { text-wrap: pretty; }
+
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       NAV
+    ───────────────────────────────────────────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: var(--z-nav);
+      background: color-mix(in oklch, var(--bg) 88%, transparent);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--ink-200);
+      transition: box-shadow 0.3s var(--ease-out-quint),
+                  background 0.3s var(--ease-out-quint);
+    }
+
+    /* Scrolled state — deeper shadow clarifies separation from content */
+    .nav.is-scrolled {
+      box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07);
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--ink-900);
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .nav-logo:hover { opacity: 0.8; }
+
+    .nav-logo-icon {
+      width: 32px; height: 32px;
+      background: var(--brand-700);
+      border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .nav-cta {
+      display: inline-block;
+      background: var(--brand-700);
+      color: #fff;
+      padding: 9px 20px;
+      border-radius: var(--r-md);
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-decoration: none;
+      transition: background 0.18s, transform 0.2s var(--ease-out-quint),
+                  box-shadow 0.2s var(--ease-out-quint);
+    }
+    .nav-cta:hover {
+      background: var(--brand-900);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px oklch(18% 0.09 155 / 0.2);
+    }
+    .nav-cta:active {
+      transform: scale(0.97);
+      box-shadow: none;
+      transition-duration: 0.08s;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       HERO
+    ───────────────────────────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100svh;
+      padding-top: 60px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--ink-200);
+    }
+
+    .hero-grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 72px 24px;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 72px;
+      align-items: center;
+    }
+
+    /* Kicker: enters from the reading-start edge in RTL (translateX positive = from left in visual) */
+    .hero-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--brand-500);
+      border: 1px solid var(--brand-200);
+      background: var(--brand-100);
+      border-radius: 100px;
+      padding: 5px 12px;
+      margin-bottom: 20px;
+      animation: kickerReveal 0.55s var(--ease-out-expo) 0.05s both;
+    }
+
+    .hero-title {
+      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      color: var(--ink-900);
+      margin-bottom: 20px;
+      animation: heroReveal 0.75s var(--ease-out-quint) 0.12s both;
+    }
+    .hero-title em { color: var(--brand-700); font-style: normal; }
+
+    .hero-sub {
+      font-size: 1.075rem;
+      color: var(--ink-500);
+      max-width: 52ch;
+      margin-bottom: 36px;
+      line-height: 1.7;
+      animation: heroReveal 0.75s var(--ease-out-quint) 0.22s both;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      animation: heroReveal 0.75s var(--ease-out-quint) 0.32s both;
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 14px 28px;
+      border-radius: var(--r-md);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.18s,
+                  border-color 0.18s,
+                  transform 0.22s var(--ease-out-quint),
+                  box-shadow 0.22s var(--ease-out-quint);
+    }
+
+    .btn-primary {
+      background: var(--brand-700);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--brand-900);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px oklch(18% 0.09 155 / 0.24);
+    }
+    .btn-primary:active {
+      transform: scale(0.97) !important;
+      box-shadow: none !important;
+      transition-duration: 0.08s !important;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--ink-700);
+      border: 1.5px solid var(--ink-200);
+    }
+    .btn-outline:hover {
+      border-color: var(--ink-400);
+      background: var(--surface);
+      transform: translateY(-1px);
+    }
+    .btn-outline:active {
+      transform: scale(0.97) !important;
+      transition-duration: 0.08s !important;
+    }
+
+    /* ── Verdict card — flat editorial, no glassmorphism ────────────────────── */
+    .verdict-card {
+      background: var(--bg);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      font-size: 0.875rem;
+      /* Card enters from the left (visual) — its natural side in the RTL hero grid */
+      animation: cardEntrance 0.75s var(--ease-out-quint) 0.4s both;
+    }
+
+    .vc-head {
+      background: var(--brand-700);
+      color: #fff;
+      padding: 14px 20px;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .vc-address {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      /* Staggered entrance: address block appears after card */
+      animation: rowReveal 0.4s var(--ease-out-quint) 0.7s both;
+    }
+
+    .vc-address .line1 {
+      font-weight: 700;
+      color: var(--ink-900);
+      font-size: 0.9rem;
+      margin-bottom: 3px;
+    }
+    .vc-address .line2 {
+      font-size: 0.8rem;
+      color: var(--ink-400);
+    }
+
+    .vc-rows {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Each row reveals sequentially — carries the feeling of data loading */
+    .vc-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      animation: rowReveal 0.35s var(--ease-out-quint) calc(0.85s + var(--row-i, 0) * 100ms) both;
+    }
+    .vc-row .label { color: var(--ink-400); font-size: 0.82rem; }
+    .vc-row .value {
+      font-weight: 600;
+      color: var(--ink-900);
+      font-feature-settings: "tnum";
+      direction: ltr;
+    }
+    .vc-row .value.positive { color: var(--good); }
+
+    .vc-score {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      animation: rowReveal 0.35s var(--ease-out-quint) 1.15s both;
+    }
+
+    .vc-score-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+    .vc-score-label .title { color: var(--ink-400); }
+    .vc-score-label .num {
+      font-family: var(--font-display);
+      font-weight: 300;
+      font-size: 1.5rem;
+      color: var(--ink-900);
+      line-height: 1;
+    }
+    .vc-score-label .num .denom {
+      font-size: 0.9rem;
+      color: var(--ink-400);
+      font-weight: 400;
+    }
+
+    .vc-score-track {
+      height: 7px;
+      background: var(--ink-200);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .vc-score-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--good);
+      border-radius: 100px;
+      transition: width 1.3s var(--ease-out-expo) 1.3s;
+    }
+
+    /* Verdict footer: always visible, but pulses once after the score bar settles */
+    .vc-verdict {
+      padding: 14px 20px;
+      background: var(--good-bg);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--good);
+      animation: verdictSettle 0.65s ease-out 2.7s;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       STATS STRIP
+    ───────────────────────────────────────────────────────────────────────── */
+    .stats-strip {
+      background: var(--brand-700);
+      color: #fff;
+    }
+
+    .stats-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .stat {
+      padding: 32px 20px;
+      text-align: center;
+      position: relative;
+    }
+    .stat + .stat::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 20%; bottom: 20%;
+      width: 1px;
+      background: oklch(100% 0 0 / 0.15);
+    }
+
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      font-weight: 300;
+      line-height: 1;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: oklch(82% 0.03 155); /* solid — reliable contrast on brand-700 */
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       FEATURES
+    ───────────────────────────────────────────────────────────────────────── */
+    .features { padding: 100px 0; }
+
+    .features-header { margin-bottom: 56px; }
+    .features-header h2 { font-size: clamp(1.7rem, 3.5vw, 2.4rem); margin-bottom: 12px; }
+    .features-header p  { font-size: 1rem; color: var(--ink-500); max-width: 52ch; }
+
+    /* Primary feature: full-width, inverted */
+    .feature-primary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      padding: 48px;
+      background: var(--brand-700);
+      border-radius: var(--r-lg);
+      margin-bottom: 20px;
+      color: #fff;
+    }
+
+    .feature-primary h3 {
+      font-family: var(--font-display);
+      font-size: clamp(1.4rem, 3vw, 1.9rem);
+      font-weight: 900;
+      margin-bottom: 14px;
+      color: #fff;
+    }
+    .feature-primary p {
+      font-size: 0.975rem;
+      line-height: 1.7;
+      color: oklch(86% 0.04 155);
+      margin-bottom: 20px;
+    }
+    .feature-primary .feature-pill {
+      display: inline-block;
+      background: oklch(35% 0.12 155);
+      border: 1px solid oklch(45% 0.13 155);
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: oklch(88% 0.05 155);
+    }
+
+    /* Mini property demo — inside primary feature */
+    .mini-demo {
+      background: oklch(33% 0.11 155);
+      border: 1px solid oklch(40% 0.13 155);
+      border-radius: var(--r-md);
+      padding: 20px;
+      font-size: 0.8rem;
+    }
+    .mini-demo .md-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid oklch(40% 0.13 155);
+    }
+    .mini-demo .md-row:last-child { border-bottom: none; }
+
+    .mini-demo .md-label {
+      color: oklch(80% 0.04 155); /* solid color — passes 4.5:1 on this background */
+    }
+    .mini-demo .md-value { font-weight: 600; color: #fff; direction: ltr; }
+    .mini-demo .md-value.good { color: oklch(78% 0.14 148); }
+
+    .mini-score {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid oklch(40% 0.13 155);
+    }
+    .mini-score-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      margin-bottom: 7px;
+    }
+    .mini-score-top .label-s { color: oklch(80% 0.04 155); }
+    .mini-score-top .val-s   { color: #fff; font-weight: 700; }
+    .mini-score-bar {
+      height: 6px;
+      background: oklch(22% 0.1 155);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mini-score-fill {
+      height: 100%;
+      width: 0%;
+      background: oklch(78% 0.14 148);
+      border-radius: 3px;
+      transition: width 1.1s var(--ease-out-expo) 0.4s;
+    }
+
+    /* Secondary features: two equal columns */
+    .features-secondary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .feature-secondary {
+      background: var(--surface);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-lg);
+      padding: 36px 32px;
+      transition: border-color 0.22s,
+                  transform 0.28s var(--ease-out-quint),
+                  box-shadow 0.28s var(--ease-out-quint);
+    }
+    .feature-secondary:hover {
+      border-color: var(--brand-400);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 28px oklch(18% 0.09 155 / 0.09);
+    }
+
+    .feature-secondary h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 300;
+      color: var(--ink-900);
+      margin-bottom: 10px;
+    }
+    .feature-secondary p {
+      font-size: 0.9rem;
+      color: var(--ink-500);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+    .feature-icon-glyph { font-size: 1.6rem; margin-bottom: 16px; line-height: 1; }
+
+    .feature-pill {
+      display: inline-block;
+      background: var(--brand-100);
+      color: var(--brand-700);
+      border: 1px solid var(--brand-200);
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       HOW IT WORKS — genuine numbered sequence
+    ───────────────────────────────────────────────────────────────────────── */
+    .how {
+      padding: 100px 0;
+      background: var(--brand-700);
+      color: #fff;
+    }
+    .how-header { margin-bottom: 56px; }
+    .how-header h2 {
+      font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .how-header p { font-size: 1rem; color: oklch(82% 0.03 155); }
+
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      background: oklch(100% 0 0 / 0.12);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .how-step { background: var(--brand-700); padding: 40px 32px; }
+
+    .how-step-num {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      font-weight: 300;
+      color: oklch(100% 0 0 / 0.32);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+    .how-step-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 300;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .how-step-desc {
+      font-size: 0.875rem;
+      color: oklch(82% 0.03 155);
+      line-height: 1.65;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       DATA & TRUST
+    ───────────────────────────────────────────────────────────────────────── */
+    .trust {
+      padding: 100px 0;
+      border-bottom: 1px solid var(--ink-200);
+    }
+    .trust-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+    .trust h2 { font-size: clamp(1.7rem, 3.5vw, 2.4rem); margin-bottom: 14px; }
+    .trust-lead {
+      font-size: 1rem;
+      color: var(--ink-500);
+      line-height: 1.7;
+      max-width: 48ch;
+      margin-bottom: 32px;
+    }
+    .trust-sources { display: flex; flex-direction: column; gap: 10px; }
+
+    .trust-source {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-md);
+      font-size: 0.875rem;
+      transition: border-color 0.2s, transform 0.25s var(--ease-out-quint);
+    }
+    .trust-source:hover {
+      border-color: var(--brand-200);
+      transform: translateX(-3px); /* RTL: moves toward reading start */
+    }
+    .trust-source .dot {
+      width: 8px; height: 8px;
+      background: var(--brand-500);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .trust-source strong { color: var(--ink-900); }
+    .trust-source span   { color: var(--ink-400); }
+
+    /* Metrics list */
+    .metrics-list { display: flex; flex-direction: column; gap: 20px; }
+    .metric-item { padding-bottom: 20px; border-bottom: 1px solid var(--ink-200); }
+    .metric-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .metric-name {
+      font-size: 0.875rem;
+      color: var(--ink-500);
+    }
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 300;
+      color: var(--ink-900);
+      direction: ltr;
+      line-height: 1;
+    }
+    .metric-track {
+      height: 5px;
+      background: var(--ink-200);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+    .metric-fill {
+      height: 100%;
+      border-radius: 100px;
+      background: var(--brand-500);
+      width: 0%;
+      transition: width 1.2s var(--ease-out-expo);
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       DISCLAIMER
+    ───────────────────────────────────────────────────────────────────────── */
+    .disclaimer {
+      padding: 60px 0;
+      background: var(--fair-bg);
+      border-top: 3px solid var(--fair);
+      border-bottom: 3px solid var(--fair);
+    }
+    .disclaimer-inner {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .disclaimer-inner h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--ink-900);
+      margin-bottom: 10px;
+    }
+    .disclaimer-inner p {
+      font-size: 0.875rem;
+      color: var(--ink-500);
+      line-height: 1.7;
+    }
+    .disclaimer-inner p + p { margin-top: 8px; }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       CTA
+    ───────────────────────────────────────────────────────────────────────── */
+    .cta-section { padding: 100px 0; text-align: center; }
+    .cta-section h2 {
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      color: var(--ink-900);
+      margin-bottom: 14px;
+    }
+    .cta-section p {
+      font-size: 1rem;
+      color: var(--ink-500);
+      max-width: 44ch;
+      margin: 0 auto 36px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--ink-200); padding: 28px 0; }
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .footer-copy { font-size: 0.8rem; color: var(--ink-400); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a {
+      font-size: 0.8rem;
+      color: var(--ink-400);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--ink-700); }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       KEYFRAMES
+    ───────────────────────────────────────────────────────────────────────── */
+
+    /* Kicker: enters from reading-end (right in visual, which is direction=rtl start) */
+    @keyframes kickerReveal {
+      from { opacity: 0; transform: translateX(14px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Standard hero element entrance */
+    @keyframes heroReveal {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Card enters from visual left (its home side in the RTL hero grid) */
+    @keyframes cardEntrance {
+      from { opacity: 0; transform: translateX(-22px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Data row: short upward reveal — "data loading" feel */
+    @keyframes rowReveal {
+      from { opacity: 0; transform: translateY(7px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /*
+      Verdict footer pulse — background flashes slightly greener then settles.
+      Always visible (no opacity change), so no gating.
+      The "forwards" fill is unnecessary — we return to the same bg color.
+    */
+    @keyframes verdictSettle {
+      0%   { background-color: var(--good-bg); }
+      40%  { background-color: oklch(91% 0.07 148); }
+      100% { background-color: var(--good-bg); }
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       SCROLL REVEAL
+       Content is always visible by default. JS marks only below-fold elements
+       with .will-animate; removes the class on intersection.
+       Headless renderers never run JS so content remains visible.
+    ───────────────────────────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: no-preference) {
+      .reveal-motion {
+        transition: opacity 0.55s var(--ease-out-quint),
+                    transform 0.55s var(--ease-out-quint);
+      }
+      .reveal-motion.delay-1 { transition-delay: 0.09s; }
+      .reveal-motion.delay-2 { transition-delay: 0.18s; }
+      .reveal-motion.delay-3 { transition-delay: 0.27s; }
+
+      .reveal-motion.will-animate {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────
+       RESPONSIVE
+    ───────────────────────────────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        padding: 52px 24px;
+      }
+      .verdict-card { max-width: 460px; }
+      .feature-primary { grid-template-columns: 1fr; gap: 32px; padding: 32px; }
+      .features-secondary, .how-steps, .trust-grid { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); }
+      .stat + .stat::after { display: none; }
+      .how-steps { gap: 1px; }
+    }
+
+    @media (max-width: 520px) {
+      .hero-actions { flex-direction: column; align-items: flex-start; }
+      .stats-inner  { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────────────────────────────────── -->
+<nav class="nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-icon">🏠</div>
+      <span>יועץ נדל"ן חכם</span>
+    </a>
+    <a href="http://localhost:8501" target="_self" class="nav-cta">פתח את הכלי ←</a>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-grid">
+    <!-- Text column -->
+    <div>
+      <div class="hero-kicker">
+        <span>🤖</span> מבוסס XGBoost · 6,609 עסקאות
+      </div>
+      <h1 class="hero-title">
+        בדוק אם המחיר הוגן,<br>
+        <em>לפני שאתה משלם.</em>
+      </h1>
+      <p class="hero-sub">
+        כלי ניתוח נדל"ן חינמי שאומן על עסקאות אמיתיות מרשות המיסים.
+        הכנס פרטי נכס וקבל ציון כדאיות, השוואה לעסקאות דומות, והמלצות על אזורים.
+      </p>
+      <div class="hero-actions">
+        <a href="http://localhost:8501" target="_self" class="btn btn-primary">
+          התחל עכשיו ←
+        </a>
+        <a href="#features" class="btn btn-outline">
+          מה הכלי עושה?
+        </a>
+      </div>
+    </div>
+
+    <!-- Verdict card: flat editorial, animated sequentially on load -->
+    <div class="verdict-card" id="verdictCard">
+      <div class="vc-head">
+        <span>🏠</span>
+        <span>תוצאת בדיקה — דוגמה</span>
+      </div>
+      <div class="vc-address">
+        <div class="line1">רחוב הרצל 48, ראשון לציון</div>
+        <div class="line2">3.5 חדרים · 88 מ"ר · קומה 4</div>
+      </div>
+      <div class="vc-rows">
+        <!-- --row-i drives the stagger delay in CSS calc() -->
+        <div class="vc-row" style="--row-i:0">
+          <span class="label">מחיר מבוקש</span>
+          <span class="value">1,850,000 ₪</span>
+        </div>
+        <div class="vc-row" style="--row-i:1">
+          <span class="label">מחיר שוק (מודל)</span>
+          <span class="value">2,020,000 ₪</span>
+        </div>
+        <div class="vc-row" style="--row-i:2">
+          <span class="label">פער מהשוק</span>
+          <span class="value positive">+9.2% ↑</span>
+        </div>
+      </div>
+      <div class="vc-score">
+        <div class="vc-score-label">
+          <span class="title">ציון כדאיות</span>
+          <span class="num"><span id="scoreNum">0</span><span class="denom"> / 100</span></span>
+        </div>
+        <div class="vc-score-track">
+          <div class="vc-score-fill" id="scoreBar"></div>
+        </div>
+      </div>
+      <!-- Always visible — pulses via background animation after score fills -->
+      <div class="vc-verdict">
+        ✅ כדאי מאוד — מחיר מתחת לשוק
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── STATS STRIP ───────────────────────────────────────────────────────────── -->
+<div class="stats-strip">
+  <div class="stats-inner container">
+    <div class="stat reveal-motion">
+      <div class="stat-number">
+        <span class="counter" data-target="6609" data-suffix="">0</span>
+      </div>
+      <div class="stat-label">עסקאות אמיתיות ביסוד המודל</div>
+    </div>
+    <div class="stat reveal-motion delay-1">
+      <div class="stat-number">
+        <span class="counter" data-target="74" data-suffix="%">0%</span>
+      </div>
+      <div class="stat-label">דיוק המודל (R²)</div>
+    </div>
+    <div class="stat reveal-motion delay-2">
+      <div class="stat-number">
+        <span class="counter" data-target="38" data-suffix="+">0+</span>
+      </div>
+      <div class="stat-label">ערים ויישובים</div>
+    </div>
+    <div class="stat reveal-motion delay-3">
+      <div class="stat-number">חינם</div>
+      <div class="stat-label">ללא הרשמה, ללא עלות</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FEATURES ─────────────────────────────────────────────────────────────── -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="features-header reveal-motion">
+      <h2>שלושה כלים. תשובה אחת ברורה.</h2>
+      <p>כל מה שצריך לדעת לפני שקונים — בדיקת מחיר, השוואת אזורים, ועיון בעסקאות אמיתיות.</p>
+    </div>
+
+    <!-- Primary: Check Property — full width, inverted -->
+    <div class="feature-primary reveal-motion">
+      <div>
+        <h3>🏡 בדוק נכס ספציפי</h3>
+        <p>
+          מצאת דירה? הכנס את פרטיה — עיר, מחיר, שטח, חדרים וקומה —
+          או פשוט הדבק קישור ישיר מיד2. המודל יחשב מחיר שוק הוגן
+          ויגיד לך אם המחיר שמבקשים הגיוני.
+        </p>
+        <span class="feature-pill">תמיכה מלאה בקישורי יד2</span>
+      </div>
+      <div class="mini-demo">
+        <div class="md-row">
+          <span class="md-label">עיר</span>
+          <span class="md-value">ראשון לציון</span>
+        </div>
+        <div class="md-row">
+          <span class="md-label">שטח</span>
+          <span class="md-value">88 מ"ר</span>
+        </div>
+        <div class="md-row">
+          <span class="md-label">פער ממחיר שוק</span>
+          <span class="md-value good">+9.2%</span>
+        </div>
+        <div class="mini-score">
+          <div class="mini-score-top">
+            <span class="label-s">ציון כדאיות</span>
+            <span class="val-s">78 / 100</span>
+          </div>
+          <div class="mini-score-bar">
+            <div class="mini-score-fill" data-width="78"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary: two smaller features -->
+    <div class="features-secondary">
+      <div class="feature-secondary reveal-motion">
+        <div class="feature-icon-glyph">🔍</div>
+        <h3>מצא אזור להשקעה</h3>
+        <p>
+          לא בטוח היכן לחפש? הכנס תקציב ומטרה — שכירות חודשית או עליית ערך.
+          הכלי ידרג את כל האזורים בישראל וימליץ על המתאימים ביותר,
+          עם ציון כדאיות ומגמת מחירים שנתית.
+        </p>
+        <span class="feature-pill">מדד סוציו-אקונומי כלול</span>
+      </div>
+      <div class="feature-secondary reveal-motion delay-1">
+        <div class="feature-icon-glyph">📊</div>
+        <h3>עיין בנכסים ביישוב</h3>
+        <p>
+          בחר עיר וסנן לפי גודל, חדרים ושנה — ראה כל עסקה אמיתית שנמכרה שם,
+          ממוינת לפי ציון כדאיות. לא הצעות מחיר: עסקאות שנסגרו בפועל
+          ונרשמו ברשות המיסים.
+        </p>
+        <span class="feature-pill">נתוני רשות המיסים ישירות</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ──────────────────────────────────────────────────────────── -->
+<section class="how">
+  <div class="container">
+    <div class="how-header reveal-motion">
+      <h2>מ-0 להחלטה בשלושה שלבים</h2>
+      <p>אין צורך בידע קודם בנדל"ן.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step reveal-motion">
+        <div class="how-step-num">01</div>
+        <div class="how-step-title">הגדר מה אתה מחפש</div>
+        <p class="how-step-desc">
+          תקציב, מטרה, ונכס ספציפי אם יש. ניתן גם להדביק קישור מיד2 ולדלג על הזנה ידנית.
+        </p>
+      </div>
+      <div class="how-step reveal-motion delay-1">
+        <div class="how-step-num">02</div>
+        <div class="how-step-title">המודל מחשב מחיר שוק</div>
+        <p class="how-step-desc">
+          XGBoost משווה את הנכס שלך לאלפי עסקאות דומות ומחשב כמה הנכס שווה לפי השוק.
+        </p>
+      </div>
+      <div class="how-step reveal-motion delay-2">
+        <div class="how-step-num">03</div>
+        <div class="how-step-title">קבל ציון ופירוט</div>
+        <p class="how-step-desc">
+          ציון 0–100, פירוט הגורמים, ועסקאות דומות לעיון — לפני שאתה מקבל החלטה.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DATA & TRUST ──────────────────────────────────────────────────────────── -->
+<section class="trust">
+  <div class="container">
+    <div class="trust-grid">
+      <div>
+        <h2 class="reveal-motion">נתונים אמיתיים.<br>מקור ממשלתי.</h2>
+        <p class="trust-lead reveal-motion">
+          המודל אומן על עסקאות שנרשמו בפועל ברשות המיסים — לא מחירוני אינטרנט,
+          לא הצעות מחיר. מה שנמכר, בכמה ומתי.
+        </p>
+        <div class="trust-sources">
+          <div class="trust-source reveal-motion">
+            <div class="dot"></div>
+            <div>
+              <strong>רשות המיסים</strong>
+              <span> · מאגר עסקאות נדל"ן רשמי</span>
+            </div>
+          </div>
+          <div class="trust-source reveal-motion delay-1">
+            <div class="dot"></div>
+            <div>
+              <strong>הלשכה המרכזית לסטטיסטיקה</strong>
+              <span> · מדד סוציו-אקונומי ליישובים</span>
+            </div>
+          </div>
+          <div class="trust-source reveal-motion delay-2">
+            <div class="dot"></div>
+            <div>
+              <strong>OpenStreetMap</strong>
+              <span> · נקודות עניין ותשתיות</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics-list" id="metricsList">
+        <div class="metric-item reveal-motion">
+          <div class="metric-header">
+            <span class="metric-name">דיוק המודל (R²)</span>
+            <span class="metric-value">74.1%</span>
+          </div>
+          <div class="metric-track"><div class="metric-fill" data-width="74"></div></div>
+        </div>
+        <div class="metric-item reveal-motion delay-1">
+          <div class="metric-header">
+            <span class="metric-name">עסקאות בבסיס הנתונים</span>
+            <span class="metric-value">6,609</span>
+          </div>
+          <div class="metric-track"><div class="metric-fill" data-width="66"></div></div>
+        </div>
+        <div class="metric-item reveal-motion delay-2">
+          <div class="metric-header">
+            <span class="metric-name">כיסוי גיאוגרפי</span>
+            <span class="metric-value">38+ ערים</span>
+          </div>
+          <div class="metric-track"><div class="metric-fill" data-width="80"></div></div>
+        </div>
+        <div class="metric-item reveal-motion delay-3">
+          <div class="metric-header">
+            <span class="metric-name">משתנים במודל</span>
+            <span class="metric-value">12+</span>
+          </div>
+          <div class="metric-track"><div class="metric-fill" data-width="90"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DISCLAIMER ────────────────────────────────────────────────────────────── -->
+<div class="disclaimer">
+  <div class="disclaimer-inner reveal-motion">
+    <h3>⚠️ שימוש אחראי</h3>
+    <p>הכלי הוא פרויקט אקדמי שפותח לצורכי לימוד ומחקר, ולא תחליף לייעוץ מקצועי.</p>
+    <p>המודל מסביר 74% מהשינויים במחיר. שגיאה ממוצעת: כ-607,000 ₪. לפני כל רכישה — התייעץ עם שמאי מקרקעין מוסמך.</p>
+  </div>
+</div>
+
+<!-- ── FINAL CTA ─────────────────────────────────────────────────────────────── -->
+<section class="cta-section">
+  <div class="container">
+    <h2 class="reveal-motion">רוצה לבדוק נכס עכשיו?</h2>
+    <p class="reveal-motion">חינמי לחלוטין. ללא הרשמה. תשובה תוך שניות.</p>
+    <div class="reveal-motion">
+      <a href="http://localhost:8501" target="_self" class="btn btn-primary"
+         style="font-size:1.05rem; padding:16px 36px; display:inline-flex;">
+        פתח את יועץ נדל"ן חכם ←
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">© 2026 יועץ נדל"ן חכם · פרויקט אקדמי</span>
+    <nav class="footer-links">
+      <a href="#features">תכונות</a>
+      <a href="#how">איך זה עובד</a>
+      <a href="#trust">נתונים</a>
+      <a href="#disclaimer">אחריות</a>
+    </nav>
+  </div>
+</footer>
+
+<!-- ── JS ────────────────────────────────────────────────────────────────────── -->
+<script>
+  /* ─── Motion preference ──────────────────────────────────────────────────── */
+  const prefersMotion = window.matchMedia('(prefers-reduced-motion: no-preference)');
+  const wantsMotion = prefersMotion.matches;
+
+  /* ─── Nav: scrolled state ────────────────────────────────────────────────── */
+  const nav = document.getElementById('mainNav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('is-scrolled', window.scrollY > 10);
+  }, { passive: true });
+
+  /* ─── Hero: score counter + bar (load-triggered) ─────────────────────────── */
+  const SCORE_TARGET = 78;
+  const SCORE_DELAY  = 1400; /* ms after load — after card rows have appeared */
+
+  function runScoreCounter(numEl) {
+    const duration = 1100;
+    const start    = performance.now();
+    function tick(now) {
+      const t    = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      numEl.textContent = Math.round(ease * SCORE_TARGET);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('load', () => {
+    const numEl = document.getElementById('scoreNum');
+    const barEl = document.getElementById('scoreBar');
+
+    if (!numEl || !barEl) return;
+
+    if (wantsMotion) {
+      setTimeout(() => {
+        runScoreCounter(numEl);
+        barEl.style.width = SCORE_TARGET + '%';
+      }, SCORE_DELAY);
+    } else {
+      /* Reduced motion: show final values immediately */
+      numEl.textContent = SCORE_TARGET;
+      barEl.style.width = SCORE_TARGET + '%';
+    }
+
+    /* Mini score bar inside feature-primary */
+    document.querySelectorAll('.mini-score-fill').forEach(el => {
+      el.style.width = el.dataset.width + '%';
+    });
+  });
+
+  /* ─── Stats strip: counter animation ────────────────────────────────────── */
+  const counterObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el     = entry.target;
+      const target = parseInt(el.dataset.target, 10);
+      const suffix = el.dataset.suffix || '';
+
+      if (wantsMotion) {
+        const duration = 1400;
+        const start    = performance.now();
+        function tick(now) {
+          const t    = Math.min((now - start) / duration, 1);
+          const ease = 1 - Math.pow(1 - t, 3);
+          el.textContent = Math.round(ease * target).toLocaleString('he-IL') + suffix;
+          if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      } else {
+        el.textContent = target.toLocaleString('he-IL') + suffix;
+      }
+      counterObs.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.counter').forEach(el => counterObs.observe(el));
+
+  /* ─── Metric bars: fill on scroll ───────────────────────────────────────── */
+  const metricObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.querySelectorAll('.metric-fill').forEach(fill => {
+        fill.style.width = fill.dataset.width + '%';
+      });
+      metricObs.unobserve(entry.target);
+    });
+  }, { threshold: 0.25 });
+
+  const metricsList = document.getElementById('metricsList');
+  if (metricsList) metricObs.observe(metricsList);
+
+  /* ─── Scroll reveal ──────────────────────────────────────────────────────── */
+  /*
+    Content is visible by default.
+    Only elements currently BELOW the fold get .will-animate (hidden).
+    Headless renderers skip JS entirely; content stays visible.
+  */
+  if (wantsMotion) {
+    const vh = window.innerHeight;
+
+    document.querySelectorAll('.reveal-motion').forEach(el => {
+      if (el.getBoundingClientRect().top > vh * 0.95) {
+        el.classList.add('will-animate');
+      }
+    });
+
+    const revealObs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.remove('will-animate');
+          revealObs.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.reveal-motion').forEach(el => revealObs.observe(el));
+  }
+</script>
+</body>
+</html>

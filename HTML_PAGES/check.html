@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>בדוק נכס ספציפי — יועץ נדל"ן חכם</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────────────────────── */
+    :root {
+      --brand-900: oklch(18% 0.09 155);
+      --brand-700: oklch(27% 0.12 155);
+      --brand-500: oklch(40% 0.14 155);
+      --brand-400: oklch(50% 0.15 155);
+      --brand-200: oklch(88% 0.06 155);
+      --brand-100: oklch(96% 0.015 155);
+
+      --ink-900: oklch(13% 0.015 155);
+      --ink-700: oklch(28% 0.025 155);
+      --ink-500: oklch(45% 0.03 155);
+      --ink-400: oklch(56% 0.03 155);
+      --ink-200: oklch(82% 0.018 155);
+      --ink-100: oklch(95% 0.01 155);
+
+      --good:    oklch(50% 0.16 148);
+      --good-bg: oklch(95% 0.04 148);
+      --fair:    oklch(65% 0.14 78);
+      --fair-bg: oklch(96% 0.04 78);
+      --bad:     oklch(52% 0.16 25);
+      --bad-bg:  oklch(96% 0.04 25);
+
+      --bg:      oklch(99.5% 0.003 155);
+      --surface: oklch(97% 0.008 155);
+
+      --font-display: 'Noto Serif Hebrew', Georgia, serif;
+      --font-body:    'Rubik', system-ui, sans-serif;
+
+      --r-sm: 4px; --r-md: 8px; --r-lg: 14px;
+
+      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out-expo:  cubic-bezier(0.16, 1, 0.3,  1);
+
+      --z-nav: 100;
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.65;
+      direction: rtl;
+      text-align: right;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 300;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: var(--z-nav);
+      background: rgba(253,253,252,0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--ink-200);
+      transition: box-shadow 0.3s var(--ease-out-quint);
+    }
+    .nav.is-scrolled { box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07); }
+
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto; padding: 0 24px;
+      height: 60px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 9px;
+      font-family: var(--font-display); font-weight: 400; font-size: 1rem;
+      color: var(--ink-900); text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .nav-logo:hover { opacity: 0.75; }
+    .nav-logo-icon {
+      width: 32px; height: 32px; background: var(--brand-700);
+      border-radius: var(--r-md); display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 1rem;
+    }
+    .nav-back {
+      font-size: 0.85rem; color: var(--ink-500); text-decoration: none;
+      display: flex; align-items: center; gap: 5px;
+      transition: color 0.15s;
+    }
+    .nav-back:hover { color: var(--ink-900); }
+
+    /* ── Page layout ────────────────────────────────────────────────────────── */
+    .page {
+      min-height: 100svh;
+      padding-top: 60px;
+    }
+
+    .page-header {
+      background: var(--brand-700);
+      color: #fff;
+      padding: 48px 24px;
+      animation: headerReveal 0.7s var(--ease-out-quint) 0.05s both;
+    }
+    .page-header-inner {
+      max-width: 1100px; margin: 0 auto;
+    }
+    .page-header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .page-header p {
+      font-size: 1rem;
+      color: oklch(86% 0.04 155);
+      max-width: 52ch;
+    }
+
+    /* ── Main content ────────────────────────────────────────────────────────── */
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 40px;
+      align-items: start;
+    }
+
+    /* ── Input panel ─────────────────────────────────────────────────────────── */
+    .input-panel {
+      animation: panelReveal 0.65s var(--ease-out-quint) 0.15s both;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1.5px solid var(--ink-200);
+      margin-bottom: 28px;
+      gap: 0;
+    }
+    .tab-btn {
+      background: none; border: none; cursor: pointer;
+      font-family: var(--font-body); font-size: 0.9rem; font-weight: 500;
+      color: var(--ink-400); padding: 10px 20px;
+      border-bottom: 2.5px solid transparent;
+      margin-bottom: -1.5px;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .tab-btn:hover { color: var(--ink-700); }
+    .tab-btn.active {
+      color: var(--brand-700);
+      border-bottom-color: var(--brand-700);
+      font-weight: 600;
+    }
+
+    /* Tab panes */
+    .tab-pane { display: none; animation: fadeIn 0.25s var(--ease-out-expo) both; }
+    .tab-pane.active { display: block; }
+
+    /* URL input pane */
+    .url-pane-desc {
+      font-size: 0.875rem;
+      color: var(--ink-500);
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+    .url-row {
+      display: flex; gap: 10px; margin-bottom: 8px;
+    }
+    .url-input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.9rem;
+      color: var(--ink-900);
+      background: var(--bg);
+      direction: ltr; text-align: left;
+      transition: border-color 0.18s, box-shadow 0.18s;
+    }
+    .url-input:focus {
+      outline: none;
+      border-color: var(--brand-500);
+      box-shadow: 0 0 0 3px oklch(40% 0.14 155 / 0.12);
+    }
+    .url-input::placeholder { color: var(--ink-400); }
+
+    .btn-extract {
+      white-space: nowrap;
+      padding: 12px 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.875rem; font-weight: 600;
+      color: var(--ink-700); cursor: pointer;
+      transition: background 0.18s, border-color 0.18s,
+                  transform 0.2s var(--ease-out-quint), box-shadow 0.2s var(--ease-out-quint);
+    }
+    .btn-extract:hover {
+      background: var(--ink-100); border-color: var(--ink-400);
+      transform: translateY(-1px);
+    }
+    .btn-extract:active { transform: scale(0.97); transition-duration: 0.08s; }
+    .btn-extract:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Autofill status chips */
+    .autofill-status {
+      display: none;
+      flex-wrap: wrap; gap: 6px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--ink-200);
+      border-radius: var(--r-md);
+      margin-bottom: 16px;
+    }
+    .autofill-status.visible { display: flex; }
+    .autofill-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.78rem; font-weight: 500;
+      padding: 3px 8px; border-radius: 100px;
+    }
+    .autofill-chip.filled { background: var(--good-bg); color: var(--good); }
+    .autofill-chip.missing { background: var(--bad-bg);  color: var(--bad);  }
+
+    /* Manual form */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    .field-label {
+      display: block;
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--ink-700);
+      margin-bottom: 5px;
+    }
+    .field-hint {
+      font-size: 0.75rem; color: var(--ink-400); font-weight: 400; margin-right: 4px;
+    }
+
+    .field-input, .field-select {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.9rem;
+      color: var(--ink-900); background: var(--bg);
+      transition: border-color 0.18s, box-shadow 0.18s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .field-input:focus, .field-select:focus {
+      outline: none;
+      border-color: var(--brand-500);
+      box-shadow: 0 0 0 3px oklch(40% 0.14 155 / 0.12);
+    }
+    .field-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: left 12px center;
+      padding-left: 32px;
+    }
+
+    .field-number-wrapper { position: relative; }
+    .field-suffix {
+      position: absolute;
+      left: 11px; top: 50%; transform: translateY(-50%);
+      font-size: 0.8rem; color: var(--ink-400); pointer-events: none;
+    }
+    .field-input.has-suffix { padding-left: 36px; direction: ltr; text-align: left; }
+
+    /* Submit button */
+    .btn-submit {
+      width: 100%; margin-top: 24px;
+      padding: 15px 28px;
+      background: var(--brand-700); color: #fff;
+      border: none; border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 1rem; font-weight: 700;
+      cursor: pointer;
+      transition: background 0.18s,
+                  transform 0.22s var(--ease-out-quint),
+                  box-shadow 0.22s var(--ease-out-quint);
+    }
+    .btn-submit:hover {
+      background: var(--brand-900);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px oklch(18% 0.09 155 / 0.22);
+    }
+    .btn-submit:active {
+      transform: scale(0.97) !important;
+      box-shadow: none !important;
+      transition-duration: 0.08s !important;
+    }
+    .btn-submit:disabled {
+      opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none;
+    }
+    .btn-submit .spinner {
+      display: none;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    .btn-submit.loading { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-submit.loading .spinner { display: block; }
+    .btn-submit.loading .btn-text::after { content: '...'; }
+
+    /* Error message */
+    .error-msg {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--bad-bg);
+      border: 1.5px solid var(--bad);
+      border-radius: var(--r-md);
+      font-size: 0.875rem;
+      color: var(--bad);
+      animation: fadeIn 0.3s var(--ease-out-expo) both;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── Result panel ──────────────────────────────────────────────────────────── */
+    .result-panel {
+      position: sticky;
+      top: 80px;
+      animation: panelReveal 0.65s var(--ease-out-quint) 0.25s both;
+    }
+
+    /* Empty state */
+    .result-empty {
+      background: var(--surface);
+      border: 1.5px dashed var(--ink-200);
+      border-radius: var(--r-lg);
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--ink-400);
+    }
+    .result-empty-icon { font-size: 2.4rem; margin-bottom: 12px; opacity: 0.5; }
+    .result-empty p { font-size: 0.875rem; line-height: 1.6; }
+
+    /* Result card */
+    .result-card {
+      background: var(--bg);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      display: none;
+    }
+    .result-card.visible { display: block; animation: resultReveal 0.55s var(--ease-out-quint) both; }
+
+    .rc-head {
+      background: var(--brand-700); color: #fff;
+      padding: 14px 20px;
+      font-family: var(--font-display); font-weight: 400; font-size: 0.9rem;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .rc-address {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      font-size: 0.875rem;
+    }
+    .rc-address .rc-addr-main { font-weight: 600; color: var(--ink-900); margin-bottom: 2px; }
+    .rc-address .rc-addr-sub  { color: var(--ink-400); font-size: 0.8rem; }
+
+    /* Score section */
+    .rc-score-section {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--ink-200);
+    }
+    .rc-score-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .rc-score-label { font-size: 0.8rem; color: var(--ink-400); }
+    .rc-score-number {
+      font-family: var(--font-display);
+      font-size: 2.2rem; font-weight: 300;
+      color: var(--ink-900); line-height: 1;
+    }
+    .rc-score-denom { font-size: 1rem; color: var(--ink-400); font-weight: 300; }
+    .rc-score-track {
+      height: 8px; background: var(--ink-200); border-radius: 100px; overflow: hidden;
+    }
+    .rc-score-fill {
+      height: 100%; width: 0%; border-radius: 100px;
+      transition: width 1.3s var(--ease-out-expo) 0.4s;
+    }
+    .rc-score-fill.good  { background: var(--good); }
+    .rc-score-fill.fair  { background: var(--fair); }
+    .rc-score-fill.bad   { background: var(--bad);  }
+
+    /* Data rows */
+    .rc-rows {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .rc-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 0.84rem;
+    }
+    .rc-row .lbl { color: var(--ink-400); }
+    .rc-row .val { font-weight: 600; color: var(--ink-900); font-feature-settings: "tnum"; direction: ltr; }
+    .rc-row .val.pos { color: var(--good); }
+    .rc-row .val.neg { color: var(--bad);  }
+
+    /* Component scores */
+    .rc-components {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      display: flex; flex-direction: column; gap: 9px;
+    }
+    .rc-comp-title {
+      font-size: 0.75rem; font-weight: 600; color: var(--ink-500);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .rc-comp-row { display: flex; flex-direction: column; gap: 4px; }
+    .rc-comp-label-row {
+      display: flex; justify-content: space-between; font-size: 0.8rem;
+    }
+    .rc-comp-label-row .name { color: var(--ink-500); }
+    .rc-comp-label-row .pct  { color: var(--ink-700); font-weight: 600; }
+    .rc-comp-mini-track {
+      height: 4px; background: var(--ink-200); border-radius: 100px; overflow: hidden;
+    }
+    .rc-comp-mini-fill {
+      height: 100%; width: 0%; border-radius: 100px; background: var(--brand-500);
+      transition: width 1s var(--ease-out-expo);
+    }
+
+    /* Verdict footer */
+    .rc-verdict {
+      padding: 14px 20px;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.875rem; font-weight: 600;
+    }
+    .rc-verdict.good { background: var(--good-bg); color: var(--good); }
+    .rc-verdict.fair { background: var(--fair-bg); color: var(--fair); }
+    .rc-verdict.bad  { background: var(--bad-bg);  color: var(--bad);  }
+
+    /* Disclaimer */
+    .disclaimer-note {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-radius: var(--r-md);
+      font-size: 0.75rem; color: var(--ink-400);
+      line-height: 1.55;
+    }
+
+    /* ── Keyframes ───────────────────────────────────────────────────────────── */
+    @keyframes headerReveal {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes panelReveal {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes resultReveal {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes rowReveal {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Reduced motion ──────────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ── Reasons section ────────────────────────────────────────────────────── */
+    .rc-reasons {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--ink-200);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .rc-reasons-title {
+      font-size: 0.75rem; font-weight: 600; color: var(--ink-500);
+      text-transform: uppercase; letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+    .rc-reason {
+      display: flex; gap: 10px; align-items: flex-start;
+      animation: rowReveal 0.35s var(--ease-out-quint) calc(var(--ri, 0) * 80ms) both;
+    }
+    .rc-reason-icon { font-size: 1rem; line-height: 1.5; flex-shrink: 0; }
+    .rc-reason-body { flex: 1; }
+    .rc-reason-title {
+      font-size: 0.84rem; font-weight: 600; color: var(--ink-900);
+      margin-bottom: 1px;
+    }
+    .rc-reason-desc { font-size: 0.8rem; color: var(--ink-500); line-height: 1.55; }
+
+    /* ── Map toggle button ───────────────────────────────────────────────────── */
+    .btn-map-toggle {
+      width: 100%; margin-top: 12px;
+      padding: 11px 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--ink-200);
+      border-radius: var(--r-md);
+      font-family: var(--font-body); font-size: 0.875rem; font-weight: 600;
+      color: var(--ink-700); cursor: pointer; text-align: center;
+      transition: background 0.18s, border-color 0.18s,
+                  transform 0.2s var(--ease-out-quint);
+    }
+    .btn-map-toggle:hover {
+      background: var(--brand-100); border-color: var(--brand-400);
+      color: var(--brand-700); transform: translateY(-1px);
+    }
+    .btn-map-toggle:active { transform: scale(0.98); transition-duration: 0.08s; }
+
+    /* ── Map section ─────────────────────────────────────────────────────────── */
+    .map-section {
+      border-top: 1px solid var(--ink-200);
+      padding: 40px 24px 60px;
+      animation: panelReveal 0.6s var(--ease-out-quint) both;
+    }
+    .map-section-inner { max-width: 1100px; margin: 0 auto; }
+
+    .map-section h2 {
+      font-size: 1.3rem; font-weight: 300; margin-bottom: 6px;
+    }
+    .map-section-desc {
+      font-size: 0.85rem; color: var(--ink-400); margin-bottom: 20px;
+    }
+
+    .map-filters {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-bottom: 14px;
+    }
+    .map-filter-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px; border-radius: 100px;
+      border: 1.5px solid var(--ink-200);
+      font-size: 0.8rem; font-weight: 500; color: var(--ink-700);
+      cursor: pointer; user-select: none;
+      transition: background 0.14s, border-color 0.14s, opacity 0.14s;
+      background: var(--bg);
+    }
+    .map-filter-chip.active {
+      background: var(--surface);
+      border-color: var(--ink-400);
+    }
+    .map-filter-chip.inactive { opacity: 0.4; }
+    .map-filter-chip .chip-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    #leafletMap {
+      height: 430px;
+      border-radius: var(--r-lg);
+      border: 1px solid var(--ink-200);
+      overflow: hidden;
+    }
+
+    .map-legend {
+      display: flex; flex-wrap: wrap; gap: 14px;
+      margin-top: 12px; font-size: 0.78rem; color: var(--ink-500);
+    }
+    .map-legend-item { display: flex; align-items: center; gap: 5px; }
+    .map-legend-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .map-loading {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      height: 430px;
+      background: var(--surface); border-radius: var(--r-lg);
+      border: 1px solid var(--ink-200);
+      color: var(--ink-400); font-size: 0.875rem;
+    }
+    .map-loading .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--ink-200);
+      border-top-color: var(--brand-500);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .main {
+        grid-template-columns: 1fr;
+        padding: 32px 16px 60px;
+      }
+      .result-panel { position: static; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .full { grid-column: 1; }
+      #leafletMap { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ────────────────────────────────────────────────────────────────────── -->
+<nav class="nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-icon">🏠</div>
+      <span>יועץ נדל"ן חכם</span>
+    </a>
+    <a href="/" class="nav-back">← חזור לדף הבית</a>
+  </div>
+</nav>
+
+<!-- ── Page header ───────────────────────────────────────────────────────────── -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-inner">
+      <h1>🏡 בדוק נכס ספציפי</h1>
+      <p>הכנס פרטי נכס — או הדבק קישור מיד2 — וקבל ניתוח מחיר, ציון כדאיות ופירוט מלא.</p>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- ── Input panel ──────────────────────────────────────────────────────── -->
+    <div class="input-panel">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="url">קישור יד2</button>
+        <button class="tab-btn" data-tab="manual">הזנה ידנית</button>
+      </div>
+
+      <!-- URL pane -->
+      <div class="tab-pane active" id="pane-url">
+        <p class="url-pane-desc">
+          הדבק קישור למודעה ביד2 ולחץ "חלץ". הכלי ימלא את הפרטים אוטומטית — ובדוק את הנכס.
+        </p>
+        <div class="url-row">
+          <input type="url" class="url-input" id="urlInput"
+                 placeholder="https://www.yad2.co.il/item/..." dir="ltr" />
+          <button class="btn-extract" id="extractBtn">חלץ פרטים</button>
+        </div>
+
+        <div class="autofill-status" id="autofillStatus"></div>
+
+        <!-- After extraction, show the form fields in URL pane too -->
+        <div id="urlFormFields" style="display:none;">
+          <div class="form-grid" style="margin-top:20px;">
+            <div>
+              <label class="field-label">עיר / יישוב</label>
+              <select class="field-select" id="urlCity"></select>
+            </div>
+            <div>
+              <label class="field-label">מחיר מבוקש <span class="field-hint">₪</span></label>
+              <div class="field-number-wrapper">
+                <input type="number" class="field-input has-suffix" id="urlPrice" min="100000" max="20000000" step="50000" />
+                <span class="field-suffix">₪</span>
+              </div>
+            </div>
+            <div>
+              <label class="field-label">שטח <span class="field-hint">מ"ר</span></label>
+              <input type="number" class="field-input" id="urlArea" min="20" max="500" step="5" />
+            </div>
+            <div>
+              <label class="field-label">חדרים</label>
+              <input type="number" class="field-input" id="urlRooms" min="1" max="10" step="0.5" />
+            </div>
+            <div>
+              <label class="field-label">קומה <span class="field-hint">קרקע = 0</span></label>
+              <input type="number" class="field-input" id="urlFloor" min="0" max="50" step="1" />
+            </div>
+          </div>
+          <button class="btn-submit" id="urlSubmitBtn">
+            <span class="spinner"></span>
+            <span class="btn-text">בדוק נכס</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Manual pane -->
+      <div class="tab-pane" id="pane-manual">
+        <div class="form-grid">
+          <div class="full">
+            <label class="field-label" for="manCity">עיר / יישוב</label>
+            <select class="field-select" id="manCity"></select>
+          </div>
+          <div>
+            <label class="field-label" for="manPrice">מחיר מבוקש <span class="field-hint">₪</span></label>
+            <div class="field-number-wrapper">
+              <input type="number" class="field-input has-suffix" id="manPrice"
+                     min="100000" max="20000000" value="1500000" step="50000" />
+              <span class="field-suffix">₪</span>
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="manArea">שטח <span class="field-hint">מ"ר</span></label>
+            <input type="number" class="field-input" id="manArea"
+                   min="20" max="500" value="80" step="5" />
+          </div>
+          <div>
+            <label class="field-label" for="manRooms">חדרים</label>
+            <input type="number" class="field-input" id="manRooms"
+                   min="1" max="10" value="3" step="0.5" />
+          </div>
+          <div>
+            <label class="field-label" for="manFloor">קומה <span class="field-hint">קרקע = 0</span></label>
+            <input type="number" class="field-input" id="manFloor"
+                   min="0" max="50" value="2" step="1" />
+          </div>
+        </div>
+        <button class="btn-submit" id="manSubmitBtn">
+          <span class="spinner"></span>
+          <span class="btn-text">בדוק נכס</span>
+        </button>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <!-- ── Result panel ──────────────────────────────────────────────────────── -->
+    <div class="result-panel">
+      <div class="result-empty" id="resultEmpty">
+        <div class="result-empty-icon">🏡</div>
+        <p>מלא את פרטי הנכס<br>ולחץ "בדוק נכס"<br>כדי לראות את הניתוח כאן.</p>
+      </div>
+
+      <div class="result-card" id="resultCard">
+        <div class="rc-head">🏠 <span id="rcHeadCity">—</span></div>
+        <div class="rc-address">
+          <div class="rc-addr-main" id="rcAddrMain">—</div>
+          <div class="rc-addr-sub" id="rcAddrSub">—</div>
+        </div>
+        <div class="rc-score-section">
+          <div class="rc-score-row">
+            <span class="rc-score-label">ציון כדאיות</span>
+            <div class="rc-score-number">
+              <span id="rcScoreNum">0</span><span class="rc-score-denom"> / 100</span>
+            </div>
+          </div>
+          <div class="rc-score-track">
+            <div class="rc-score-fill" id="rcScoreFill"></div>
+          </div>
+        </div>
+        <div class="rc-rows">
+          <div class="rc-row">
+            <span class="lbl">מחיר מבוקש</span>
+            <span class="val" id="rcAsking">—</span>
+          </div>
+          <div class="rc-row">
+            <span class="lbl">מחיר שוק (מודל)</span>
+            <span class="val" id="rcMarket">—</span>
+          </div>
+          <div class="rc-row">
+            <span class="lbl">פער מהשוק</span>
+            <span class="val" id="rcGap">—</span>
+          </div>
+          <div class="rc-row">
+            <span class="lbl">עסקאות דומות בעיר</span>
+            <span class="val" id="rcDeals">—</span>
+          </div>
+        </div>
+        <div class="rc-components">
+          <div class="rc-comp-title">פירוט הציון</div>
+          <div class="rc-comp-row">
+            <div class="rc-comp-label-row">
+              <span class="name">מחיר יחסית לשוק <span style="color:var(--ink-400)">(60%)</span></span>
+              <span class="pct" id="rcPriceScore">—</span>
+            </div>
+            <div class="rc-comp-mini-track"><div class="rc-comp-mini-fill" id="rcPriceFill"></div></div>
+          </div>
+          <div class="rc-comp-row">
+            <div class="rc-comp-label-row">
+              <span class="name">מדד סוציו-אקונומי <span style="color:var(--ink-400)">(25%)</span></span>
+              <span class="pct" id="rcSocioScore">—</span>
+            </div>
+            <div class="rc-comp-mini-track"><div class="rc-comp-mini-fill" id="rcSocioFill"></div></div>
+          </div>
+          <div class="rc-comp-row">
+            <div class="rc-comp-label-row">
+              <span class="name">נזילות שוק <span style="color:var(--ink-400)">(15%)</span></span>
+              <span class="pct" id="rcLiqScore">—</span>
+            </div>
+            <div class="rc-comp-mini-track"><div class="rc-comp-mini-fill" id="rcLiqFill"></div></div>
+          </div>
+        </div>
+        <div class="rc-reasons" id="rcReasons" style="display:none;"></div>
+        <div class="rc-verdict" id="rcVerdict">—</div>
+      </div>
+
+      <div class="disclaimer-note" id="resultDisclaimer" style="display:none;">
+        ⚠️ שגיאה ממוצעת: כ-607,000 ₪ · R²=74% · לייעוץ מחייב — פנה לשמאי מוסמך.
+      </div>
+
+      <button class="btn-map-toggle" id="mapToggleBtn" style="display:none;">
+        🗺️ הצג מפה ונקודות עניין
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Map section ──────────────────────────────────────────────────────────── -->
+<div class="map-section" id="mapSection" style="display:none;">
+  <div class="map-section-inner">
+    <h2>🗺️ מפה ונקודות עניין</h2>
+    <p class="map-section-desc" id="mapDesc">נקודות עניין ברדיוס של 1 ק"מ מהנכס</p>
+
+    <div class="map-filters" id="mapFilters"></div>
+
+    <div id="mapContainer">
+      <div class="map-loading" id="mapLoading">
+        <div class="spinner"></div>
+        <span>טוען מפה...</span>
+      </div>
+      <div id="leafletMap" style="display:none;"></div>
+    </div>
+
+    <div class="map-legend" id="mapLegend"></div>
+  </div>
+</div>
+
+<script>
+  /* ── Nav scroll ──────────────────────────────────────────────────────────── */
+  const nav = document.getElementById('mainNav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('is-scrolled', window.scrollY > 10);
+  }, { passive: true });
+
+  /* ── Helpers ──────────────────────────────────────────────────────────────── */
+  const fmt = n => Math.round(n).toLocaleString('he-IL') + ' ₪';
+  const fmtPct = n => (n >= 0 ? '+' : '') + n.toFixed(1) + '%';
+
+  /* ── Load cities ─────────────────────────────────────────────────────────── */
+  async function loadCities() {
+    try {
+      const res = await fetch('/api/cities');
+      if (!res.ok) return;
+      const cities = await res.json();
+      [document.getElementById('manCity'),
+       document.getElementById('urlCity')].forEach(sel => {
+        if (!sel) return;
+        sel.innerHTML = '';
+        cities.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = opt.textContent = c;
+          sel.appendChild(opt);
+        });
+        // Default: בת ים
+        const batYam = Array.from(sel.options).findIndex(o => o.value === 'בת ים');
+        if (batYam >= 0) sel.selectedIndex = batYam;
+      });
+      // Prefill from URL params (e.g. from /browse "בדוק נכס" button)
+      const p = new URLSearchParams(location.search);
+      if (p.has('city') && p.has('price')) {
+        document.querySelector('[data-tab="manual"]')?.click();
+        const cityEl = document.getElementById('manCity');
+        if (cityEl) {
+          const opt = Array.from(cityEl.options).find(o => o.value === p.get('city'));
+          if (opt) cityEl.value = opt.value;
+        }
+        const s = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+        s('manPrice', p.get('price'));
+        s('manArea',  p.get('area'));
+        s('manRooms', p.get('rooms'));
+        s('manFloor', p.get('floor'));
+      }
+    } catch (_) {}
+  }
+  loadCities();
+
+  /* ── Tabs ─────────────────────────────────────────────────────────────────── */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+      hideError();
+      // Clear extracted coords when switching to manual entry
+      if (btn.dataset.tab === 'manual') _extractedCoords = { lat: null, lon: null, street: null };
+    });
+  });
+
+  /* ── Error helpers ────────────────────────────────────────────────────────── */
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+  function hideError() {
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+
+  /* ── Extract from URL ────────────────────────────────────────────────────── */
+  document.getElementById('extractBtn').addEventListener('click', async () => {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) { showError('הדבק קישור תחילה.'); return; }
+    hideError();
+
+    const btn = document.getElementById('extractBtn');
+    btn.disabled = true; btn.textContent = 'מחלץ...';
+
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+
+      if (data.error) { showError('⚠️ ' + data.error); return; }
+
+      // Populate URL form fields
+      const fields = { urlPrice: data.price, urlArea: data.area,
+                       urlRooms: data.rooms, urlFloor: data.floor };
+      const chips = [];
+      Object.entries(fields).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && val != null) { el.value = val; chips.push({ id, filled: true }); }
+        else chips.push({ id, filled: false });
+      });
+
+      // City
+      const cityEl = document.getElementById('urlCity');
+      if (data.city && cityEl) {
+        const opt = Array.from(cityEl.options).find(o => o.value === data.city);
+        if (opt) { cityEl.value = data.city; chips.push({ id: 'city', filled: true }); }
+        else chips.push({ id: 'city', filled: false });
+      }
+
+      // Show autofill status
+      const LABELS = { urlPrice: 'מחיר', urlArea: 'שטח', urlRooms: 'חדרים', urlFloor: 'קומה', city: 'עיר' };
+      const statusEl = document.getElementById('autofillStatus');
+      statusEl.innerHTML = chips.map(c =>
+        `<span class="autofill-chip ${c.filled ? 'filled' : 'missing'}">
+          ${c.filled ? '✓' : '✗'} ${LABELS[c.id] || c.id}
+        </span>`
+      ).join('');
+      statusEl.classList.add('visible');
+
+      // Store extracted coordinates for map
+      _extractedCoords = {
+        lat:    data.lat    || null,
+        lon:    data.lon    || null,
+        street: data.street || null,
+      };
+
+      // Show the form fields
+      document.getElementById('urlFormFields').style.display = 'block';
+
+    } catch (e) {
+      showError('שגיאת חיבור — בדוק שהשרת פועל.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'חלץ פרטים';
+    }
+  });
+
+
+  /* ── Submit ──────────────────────────────────────────────────────────────── */
+  async function submitPrediction(payload, btn) {
+    hideError();
+    btn.disabled = true; btn.classList.add('loading');
+    try {
+      const res = await fetch('/api/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { showError(data.error || 'שגיאה בעיבוד הבקשה.'); return; }
+      renderResult(payload, data);
+    } catch (e) {
+      showError('שגיאת חיבור — בדוק שהשרת פועל.');
+    } finally {
+      btn.disabled = false; btn.classList.remove('loading');
+    }
+  }
+
+  document.getElementById('manSubmitBtn').addEventListener('click', () => {
+    submitPrediction({
+      city:         document.getElementById('manCity').value,
+      asking_price: parseInt(document.getElementById('manPrice').value),
+      size_sqm:     parseFloat(document.getElementById('manArea').value),
+      rooms:        parseFloat(document.getElementById('manRooms').value),
+      floor:        parseInt(document.getElementById('manFloor').value),
+    }, document.getElementById('manSubmitBtn'));
+  });
+
+  document.getElementById('urlSubmitBtn').addEventListener('click', () => {
+    submitPrediction({
+      city:         document.getElementById('urlCity').value,
+      asking_price: parseInt(document.getElementById('urlPrice').value),
+      size_sqm:     parseFloat(document.getElementById('urlArea').value),
+      rooms:        parseFloat(document.getElementById('urlRooms').value),
+      floor:        parseInt(document.getElementById('urlFloor').value),
+    }, document.getElementById('urlSubmitBtn'));
+  });
+
+  /* ── Render result ───────────────────────────────────────────────────────── */
+  function renderResult(req, data) {
+    const score = data.viability_score;
+    const tier  = score >= 70 ? 'good' : score >= 45 ? 'fair' : 'bad';
+    const VERDICT = { good: '✅ כדאי מאוד — מחיר מתחת לשוק',
+                      fair: '⚠️ סביר — בדוק שוב לפני שמחליטים',
+                      bad:  '❌ יקר — מחיר מעל מחיר השוק' };
+
+    // Header
+    document.getElementById('rcHeadCity').textContent = req.city;
+
+    // Address
+    document.getElementById('rcAddrMain').textContent =
+      `${req.rooms} חדרים · ${req.size_sqm} מ"ר · קומה ${req.floor}`;
+    document.getElementById('rcAddrSub').textContent = req.city;
+
+    // Score bar color
+    const fill = document.getElementById('rcScoreFill');
+    fill.className = 'rc-score-fill ' + tier;
+
+    // Score counter
+    animateCounter(document.getElementById('rcScoreNum'), score, 1100, 500);
+
+    // Bar fill — trigger after a tick so the transition fires
+    setTimeout(() => { fill.style.width = score + '%'; }, 50);
+
+    // Data rows
+    document.getElementById('rcAsking').textContent = fmt(req.asking_price);
+    document.getElementById('rcMarket').textContent = fmt(data.predicted_price);
+
+    const gap = data.gap_pct;
+    const gapEl = document.getElementById('rcGap');
+    gapEl.textContent = fmtPct(gap);
+    gapEl.className   = 'val ' + (gap >= 0 ? 'pos' : 'neg');
+
+    document.getElementById('rcDeals').textContent = data.deal_count + ' עסקאות';
+
+    // Component scores
+    setComp('rcPriceScore', 'rcPriceFill', data.price_score);
+    setComp('rcSocioScore', 'rcSocioFill', data.socio_score);
+    setComp('rcLiqScore',   'rcLiqFill',   data.liq_score);
+
+    // Verdict
+    const verdictEl = document.getElementById('rcVerdict');
+    verdictEl.textContent = VERDICT[tier];
+    verdictEl.className   = 'rc-verdict ' + tier;
+
+    // Show card
+    document.getElementById('resultEmpty').style.display = 'none';
+    const card = document.getElementById('resultCard');
+    card.classList.remove('visible');
+    void card.offsetWidth; // force reflow for re-animation
+    card.classList.add('visible');
+    document.getElementById('resultDisclaimer').style.display = 'block';
+
+    // Render reasons
+    renderReasons(req, data);
+
+    // Show map toggle button
+    const mapBtn = document.getElementById('mapToggleBtn');
+    mapBtn.style.display = 'block';
+    mapBtn.textContent = '🗺️ הצג מפה ונקודות עניין';
+    mapBtn._mapOpen = false;
+    mapBtn._req = req;
+
+    // Scroll to result on mobile
+    if (window.innerWidth < 860) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  /* ── Reasons ─────────────────────────────────────────────────────────────── */
+  function renderReasons(req, data) {
+    const reasons = [];
+    const gap     = data.gap_pct;
+    const socio   = data.socio_score;
+    const deals   = data.deal_count;
+    const city    = req.city;
+
+    // Price vs market
+    if (gap > 15)
+      reasons.push(['✅', 'מחיר זול משמעותית',
+        `המודל מעריך שהנכס שווה ${gap.toFixed(1)}% יותר ממה שנדרש ממך. זו הזדמנות טובה.`]);
+    else if (gap > 3)
+      reasons.push(['✅', 'מחיר מתחת לשוק',
+        `הנכס מתומחר ${gap.toFixed(1)}% מתחת להערכת המודל. מרחב מיקוח טוב.`]);
+    else if (gap > -5)
+      reasons.push(['⚠️', 'מחיר בשוק',
+        `המחיר קרוב לשווי ההוגן (פער ${gap >= 0 ? '+' : ''}${gap.toFixed(1)}%). אין הזדמנות גדולה, אבל גם לא יקר.`]);
+    else if (gap > -15)
+      reasons.push(['⚠️', 'מחיר מעל השוק',
+        `הנכס מתומחר ${Math.abs(gap).toFixed(1)}% מעל הערכת המודל. שקול להתמקח.`]);
+    else
+      reasons.push(['❌', 'מחיר גבוה מהשוק',
+        `הנכס מתומחר ${Math.abs(gap).toFixed(1)}% מעל המודל. ודא שיש סיבה מוצדקת לפער הזה.`]);
+
+    // Area quality
+    if (socio >= 70)
+      reasons.push(['✅', `אזור איכותי — ${city}`,
+        `${city} מדורגת גבוה במדד הסוציו-אקונומי. זה מוסיף ביטחון להשקעה.`]);
+    else if (socio >= 40)
+      reasons.push(['⚠️', `אזור בינוני — ${city}`,
+        `${city} נמצאת במדד סוציו-אקונומי בינוני. לא מניע לדאגה, אבל לא בלטת.`]);
+    else
+      reasons.push(['⚠️', `אזור עם מדד נמוך — ${city}`,
+        `${city} מתחת לממוצע הארצי. סיכון גבוה יותר, אבל גם פוטנציאל עלייה.`]);
+
+    // Liquidity
+    if (deals >= 30)
+      reasons.push(['✅', 'שוק נזיל',
+        `יש ${deals} עסקאות בנתונים — שוק פעיל, קל יותר למכור בעתיד.`]);
+    else if (deals >= 10)
+      reasons.push(['⚠️', 'נזילות בינונית',
+        `יש ${deals} עסקאות — מספיק לניתוח, אבל לא שוק מאוד פעיל.`]);
+    else
+      reasons.push(['⚠️', 'מעט נתונים',
+        `רק ${deals} עסקאות בנתונים. הניתוח פחות אמין — מומלץ לקבל חוות דעת שמאי.`]);
+
+    const el = document.getElementById('rcReasons');
+    el.innerHTML =
+      `<div class="rc-reasons-title">למה הנכס קיבל את הציון הזה?</div>` +
+      reasons.map(([icon, title, desc], i) => `
+        <div class="rc-reason" style="--ri:${i}">
+          <span class="rc-reason-icon">${icon}</span>
+          <div class="rc-reason-body">
+            <div class="rc-reason-title">${title}</div>
+            <div class="rc-reason-desc">${desc}</div>
+          </div>
+        </div>`).join('');
+    el.style.display = 'flex';
+  }
+
+  function setComp(scoreId, fillId, value) {
+    document.getElementById(scoreId).textContent = Math.round(value) + '/100';
+    setTimeout(() => {
+      document.getElementById(fillId).style.width = value + '%';
+    }, 50);
+  }
+
+  function animateCounter(el, target, duration, delay) {
+    if (!window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+      el.textContent = Math.round(target); return;
+    }
+    setTimeout(() => {
+      const start = performance.now();
+      function tick(now) {
+        const t    = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(ease * target);
+        if (t < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }, delay);
+  }
+
+  /* ── Map toggle ──────────────────────────────────────────────────────────── */
+  document.getElementById('mapToggleBtn').addEventListener('click', function () {
+    const section = document.getElementById('mapSection');
+    this._mapOpen = !this._mapOpen;
+    if (this._mapOpen) {
+      this.textContent = '🗺️ הסתר מפה';
+      loadMap(this._req);
+    } else {
+      this.textContent = '🗺️ הצג מפה ונקודות עניין';
+      section.style.display = 'none';
+    }
+  });
+
+  /* ── Map ─────────────────────────────────────────────────────────────────── */
+  let _leafletMap   = null;
+  let _mapLayers    = {};   // category → Leaflet layer group
+  let _activeFilters = new Set();
+  let _lastMapReq   = null; // tracks last request for dedup
+
+  // Coordinates extracted from URL scrape (populated by extractBtn handler)
+  let _extractedCoords = { lat: null, lon: null, street: null };
+
+  // Called from renderResult — kick off map load
+  async function loadMap(req) {
+    const mapReq = {
+      city:   req.city,
+      rooms:  req.rooms,
+      lat:    _extractedCoords.lat,
+      lon:    _extractedCoords.lon,
+      street: _extractedCoords.street || null,
+    };
+
+    // Avoid re-fetching if same request
+    const key = JSON.stringify(mapReq);
+    if (key === _lastMapReq && _leafletMap) return;
+    _lastMapReq = key;
+
+    // Show map section with loading state
+    const section = document.getElementById('mapSection');
+    section.style.display = 'block';
+    document.getElementById('mapLoading').style.display = 'flex';
+    document.getElementById('leafletMap').style.display = 'none';
+    document.getElementById('mapFilters').innerHTML = '';
+    document.getElementById('mapLegend').innerHTML = '';
+
+    // Destroy old map instance
+    if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; _mapLayers = {}; }
+
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    try {
+      const res  = await fetch('/api/map-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mapReq),
+      });
+      const data = await res.json();
+      _renderMap(data, req);
+    } catch (e) {
+      document.getElementById('mapLoading').innerHTML =
+        '<span style="color:var(--bad)">⚠️ שגיאה בטעינת המפה</span>';
+    }
+  }
+
+  function _renderMap(data, req) {
+    // Switch from loading → map div
+    document.getElementById('mapLoading').style.display = 'none';
+    const mapEl = document.getElementById('leafletMap');
+    mapEl.style.display = 'block';
+
+    // Center + zoom
+    let center, zoom;
+    if (data.center) {
+      center = [data.center.lat, data.center.lon];
+      zoom   = data.center.exact ? 15 : 14;
+    } else if (data.similar.length) {
+      const avgLat = data.similar.reduce((s, p) => s + p.lat, 0) / data.similar.length;
+      const avgLon = data.similar.reduce((s, p) => s + p.lon, 0) / data.similar.length;
+      center = [avgLat, avgLon]; zoom = 13;
+    } else {
+      center = [32.08, 34.78]; zoom = 11;
+    }
+
+    _leafletMap = L.map('leafletMap').setView(center, zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+      maxZoom: 19,
+    }).addTo(_leafletMap);
+
+    // ── Similar transactions layer ──────────────────────────────────────────
+    if (data.similar.length) {
+      const group = L.layerGroup();
+      data.similar.forEach(p => {
+        const addrParts = [p.street, p.house_num].filter(Boolean);
+        const addrLine  = addrParts.length ? addrParts.join(' ') : req.city;
+        const yearLabel = p.year ? ` · ${p.year}` : '';
+        L.circleMarker([p.lat, p.lon], {
+          radius: 6, color: '#6495ED', fillColor: '#6495ED',
+          fillOpacity: 0.65, weight: 1,
+        })
+        .bindTooltip(`${addrLine} · ${p.rooms} חדרים · ${p.price.toLocaleString('he-IL')} ₪`)
+        .bindPopup(
+          `<div dir="rtl" style="min-width:160px;font-family:sans-serif;">
+            <b style="font-size:0.9rem;">${addrLine}${yearLabel}</b><br>
+            <span style="font-size:0.85rem;">${p.price.toLocaleString('he-IL')} ₪</span><br>
+            <span style="color:#666;font-size:0.8rem;">${p.rooms} חדרים</span>
+          </div>`,
+          { maxWidth: 220 }
+        )
+        .addTo(group);
+      });
+      group.addTo(_leafletMap);
+      _mapLayers['__similar'] = group;
+    }
+
+    // ── POI layers ─────────────────────────────────────────────────────────
+    _activeFilters = new Set(data.poi_summary.map(s => s.cat));
+    if (data.similar.length) _activeFilters.add('__similar');
+
+    const byCategory = {};
+    data.pois.forEach(p => {
+      if (!byCategory[p.category]) byCategory[p.category] = [];
+      byCategory[p.category].push(p);
+    });
+
+    data.poi_summary.forEach(s => {
+      const group = L.layerGroup();
+      (byCategory[s.cat] || []).forEach(p => {
+        const label = p.name || s.heb;
+        L.circleMarker([p.lat, p.lon], {
+          radius: 5, color: s.color, fillColor: s.color,
+          fillOpacity: 0.65, weight: 1,
+        }).bindTooltip(`${label} · ${p.dist_m} מ'`)
+          .addTo(group);
+      });
+      group.addTo(_leafletMap);
+      _mapLayers[s.cat] = group;
+    });
+
+    // ── Property pin ────────────────────────────────────────────────────────
+    if (data.center) {
+      const approx   = !data.center.exact;
+      const pinColor = approx ? '#FF8C00' : '#DC3545';
+      const pinIcon  = L.divIcon({
+        className: '',
+        html: `<div style="
+          width:30px;height:30px;
+          background:${pinColor};
+          border:2px solid #fff;
+          border-radius:50% 50% 50% 0;
+          transform:rotate(-45deg);
+          box-shadow:0 2px 8px rgba(0,0,0,0.3);
+        "></div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+      });
+      const pinLabel = `${req.city}${approx ? ' (מיקום משוער)' : ''} · ${req.asking_price.toLocaleString('he-IL')} ₪`;
+      L.marker([data.center.lat, data.center.lon], { icon: pinIcon })
+       .bindTooltip(pinLabel)
+       .bindPopup(
+         `<div dir="rtl" style="min-width:160px;font-family:sans-serif;">
+           <b style="font-size:0.9rem;">הנכס הנבדק${approx ? ' (משוער)' : ''}</b><br>
+           <span style="font-size:0.85rem;">${req.asking_price.toLocaleString('he-IL')} ₪</span><br>
+           <span style="color:#666;font-size:0.8rem;">${req.rooms} חדרים · ${req.size_sqm} מ"ר · ${req.city}</span>
+         </div>`,
+         { maxWidth: 220 }
+       )
+       .addTo(_leafletMap);
+    }
+
+    // ── Filter chips — similar deals first, then POI ────────────────────────
+    const filtersEl = document.getElementById('mapFilters');
+
+    if (data.similar.length) {
+      const chip = document.createElement('button');
+      chip.className    = 'map-filter-chip active';
+      chip.dataset.cat  = '__similar';
+      chip.innerHTML    = `<span class="chip-dot" style="background:#6495ED"></span>🏘️ נכסים דומים <span style="color:var(--ink-400)">(${data.similar.length})</span>`;
+      chip.addEventListener('click', () => _toggleFilter('__similar', chip));
+      filtersEl.appendChild(chip);
+    }
+
+    data.poi_summary.forEach(s => {
+      const chip = document.createElement('button');
+      chip.className    = 'map-filter-chip active';
+      chip.dataset.cat  = s.cat;
+      chip.innerHTML    = `<span class="chip-dot" style="background:${s.color}"></span>${s.emoji} ${s.heb} <span style="color:var(--ink-400)">(${s.count})</span>`;
+      chip.addEventListener('click', () => _toggleFilter(s.cat, chip));
+      filtersEl.appendChild(chip);
+    });
+
+    // ── Legend ─────────────────────────────────────────────────────────────
+    const legendEl = document.getElementById('mapLegend');
+    const legendItems = [];
+    if (data.center)       legendItems.push({ color: data.center.exact ? '#DC3545' : '#FF8C00',
+                                              label: data.center.exact ? 'הנכס' : 'הנכס (משוער)' });
+    if (data.similar.length) legendItems.push({ color: '#6495ED', label: `נכסים דומים (${data.similar.length}) — לחץ לפרטים` });
+    legendItems.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'map-legend-item';
+      div.innerHTML = `<span class="map-legend-dot" style="background:${item.color}"></span>${item.label}`;
+      legendEl.appendChild(div);
+    });
+
+    // Update description
+    const descEl = document.getElementById('mapDesc');
+    if (!data.center) descEl.textContent = 'הכנס כתובת לצפייה במיקום המדויק';
+    else descEl.textContent = `${data.pois.length} נקודות עניין ברדיוס 1 ק"מ${!data.center.exact ? ' — מיקום משוער לפי עיר' : ''}`;
+  }
+
+  function _toggleFilter(cat, chipEl) {
+    const layer = _mapLayers[cat];
+    if (!layer || !_leafletMap) return;
+    if (_activeFilters.has(cat)) {
+      _activeFilters.delete(cat);
+      _leafletMap.removeLayer(layer);
+      chipEl.classList.remove('active');
+      chipEl.classList.add('inactive');
+    } else {
+      _activeFilters.add(cat);
+      layer.addTo(_leafletMap);
+      chipEl.classList.remove('inactive');
+      chipEl.classList.add('active');
+    }
+  }
+</script>
+</body>
+</html>

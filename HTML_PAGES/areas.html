@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>אזורי השקעה — יועץ נדל"ן חכם</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    /* ── Tokens ──────────────────────────────────────────────────────────────── */
+    :root {
+      --brand-900: oklch(18% 0.09 155);
+      --brand-700: oklch(27% 0.12 155);
+      --brand-500: oklch(40% 0.14 155);
+      --brand-400: oklch(50% 0.15 155);
+      --brand-200: oklch(88% 0.06 155);
+      --brand-100: oklch(96% 0.015 155);
+
+      --ink-900: oklch(13% 0.015 155);
+      --ink-700: oklch(28% 0.025 155);
+      --ink-500: oklch(45% 0.03 155);
+      --ink-400: oklch(56% 0.03 155);
+      --ink-200: oklch(82% 0.018 155);
+      --ink-100: oklch(95% 0.01 155);
+
+      --good:    oklch(50% 0.16 148);
+      --good-bg: oklch(95% 0.04 148);
+      --fair:    oklch(55% 0.14 78);
+      --fair-bg: oklch(96% 0.04 78);
+      --bad:     oklch(52% 0.16 25);
+      --bad-bg:  oklch(96% 0.04 25);
+
+      --bg:      oklch(99.5% 0.003 155);
+      --surface: oklch(97% 0.008 155);
+
+      --font-display: 'Noto Serif Hebrew', Georgia, serif;
+      --font-body:    'Rubik', system-ui, sans-serif;
+
+      --r-sm: 4px; --r-md: 8px; --r-lg: 14px;
+      --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out-expo:  cubic-bezier(0.16, 1, 0.3,  1);
+      --z-nav:      100;
+      --z-controls: 90;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--ink-900);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.65;
+      direction: rtl;
+      text-align: right;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 {
+      font-family: var(--font-display);
+      font-weight: 300;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      text-wrap: balance;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────────────────────────── */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: var(--z-nav);
+      background: rgba(253,253,252,0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--ink-200);
+      transition: box-shadow 0.3s var(--ease-out-quint);
+    }
+    .nav.is-scrolled { box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07); }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 24px;
+      height: 60px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 9px;
+      font-family: var(--font-display); font-weight: 400; font-size: 1rem;
+      color: var(--ink-900); text-decoration: none; transition: opacity 0.15s;
+    }
+    .nav-logo:hover { opacity: 0.75; }
+    .nav-logo-icon {
+      width: 32px; height: 32px; background: var(--brand-700);
+      border-radius: var(--r-md); display: flex; align-items: center;
+      justify-content: center; color: #fff; font-size: 1rem;
+    }
+    .nav-back {
+      font-size: 0.85rem; color: var(--ink-500); text-decoration: none;
+      display: flex; align-items: center; gap: 5px; transition: color 0.15s;
+    }
+    .nav-back:hover { color: var(--ink-900); }
+
+    /* ── Page ────────────────────────────────────────────────────────────────── */
+    .page { min-height: 100svh; padding-top: 60px; }
+
+    .page-header {
+      background: var(--brand-700); color: #fff;
+      padding: 40px 24px;
+      animation: headerReveal 0.7s var(--ease-out-quint) 0.05s both;
+    }
+    .page-header-inner { max-width: 1200px; margin: 0 auto; }
+    .page-header h1 {
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem); color: #fff; margin-bottom: 8px;
+    }
+    .page-header p { font-size: 0.95rem; color: oklch(86% 0.04 155); max-width: 62ch; }
+
+    /* ── Controls (sticky) ───────────────────────────────────────────────────── */
+    .controls-section {
+      position: sticky; top: 60px; z-index: var(--z-controls);
+      background: var(--bg); border-bottom: 1px solid var(--ink-200);
+      box-shadow: 0 2px 14px oklch(13% 0.015 155 / 0.05);
+      animation: ctrlReveal 0.5s var(--ease-out-quint) 0.15s both;
+    }
+    .controls-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px 12px; }
+
+    /* ── Filter row ──────────────────────────────────────────────────────────── */
+    .filter-row {
+      display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+      padding-bottom: 12px; margin-bottom: 10px;
+      border-bottom: 1px solid var(--ink-100);
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .filter-label {
+      font-size: 0.78rem; font-weight: 600; color: var(--ink-500);
+      letter-spacing: 0.01em; display: flex; align-items: center; gap: 5px;
+    }
+    .info-badge {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--ink-200); color: var(--ink-500);
+      font-size: 0.62rem; display: inline-flex; align-items: center;
+      justify-content: center; cursor: help; font-style: normal;
+    }
+
+    /* Budget */
+    .budget-wrap { display: flex; align-items: center; gap: 5px; }
+    .budget-btn {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 1.5px solid var(--ink-200); background: var(--bg);
+      color: var(--ink-700); cursor: pointer; font-size: 1rem; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-body);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .budget-btn:hover { border-color: var(--brand-500); background: var(--brand-100); }
+    .budget-input {
+      width: 120px; padding: 5px 9px; text-align: center;
+      border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
+      font-family: var(--font-body); font-size: 0.875rem; color: var(--ink-900);
+      background: var(--bg); direction: ltr;
+      transition: border-color 0.15s;
+    }
+    .budget-input:focus { outline: none; border-color: var(--brand-500); }
+
+    /* Goal toggle */
+    .goal-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+    .goal-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px;
+      border: 1.5px solid var(--ink-200); border-radius: var(--r-md);
+      background: var(--bg); cursor: pointer; text-align: right;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .goal-btn:hover { border-color: var(--brand-400); background: var(--brand-100); }
+    .goal-btn.active {
+      border-color: var(--brand-700); background: var(--brand-100);
+    }
+    .goal-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .goal-content { display: flex; flex-direction: column; gap: 1px; }
+    .goal-title {
+      font-size: 0.82rem; font-weight: 600; color: var(--ink-700); line-height: 1.2;
+    }
+    .goal-sub { font-size: 0.69rem; color: var(--ink-400); line-height: 1.2; }
+    .goal-btn.active .goal-title { color: var(--brand-700); }
+    .goal-btn.active .goal-sub   { color: var(--brand-500); }
+
+    /* Sort row */
+    .sort-row {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .sort-label {
+      font-size: 0.8rem; font-weight: 600; color: var(--ink-500);
+      white-space: nowrap; letter-spacing: 0.01em;
+    }
+    .sort-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+    .sort-tab {
+      padding: 5px 13px;
+      border: 1.5px solid var(--ink-200); border-radius: 18px;
+      font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
+      color: var(--ink-500); background: var(--bg); cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .sort-tab:hover { color: var(--ink-700); border-color: var(--ink-400); }
+    .sort-tab.active { background: var(--brand-700); color: #fff; border-color: var(--brand-700); }
+
+    /* District pills */
+    .district-row {
+      display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .district-row::-webkit-scrollbar { display: none; }
+    .district-pill {
+      padding: 4px 11px;
+      border: 1.5px solid var(--ink-200); border-radius: 14px;
+      font-family: var(--font-body); font-size: 0.78rem; font-weight: 500;
+      color: var(--ink-500); background: var(--bg); cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .district-pill:hover { color: var(--ink-700); border-color: var(--ink-400); }
+    .district-pill.active {
+      background: var(--brand-200); color: var(--brand-700); border-color: var(--brand-400);
+    }
+
+    /* ── Results outer ───────────────────────────────────────────────────────── */
+    .results-outer { max-width: 1200px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* Stats strip */
+    .stats-strip {
+      display: flex; gap: 1px;
+      background: var(--ink-200);
+      border: 1px solid var(--ink-200);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      margin: 24px 0 18px;
+      animation: statsReveal 0.5s var(--ease-out-quint) both;
+    }
+    .stat-tile {
+      flex: 1; min-width: 0;
+      background: var(--surface); padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .stat-num {
+      font-family: var(--font-display);
+      font-size: clamp(1.05rem, 2.2vw, 1.45rem);
+      font-weight: 400; color: var(--brand-700);
+      line-height: 1.1; letter-spacing: -0.02em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .stat-lbl { font-size: 0.77rem; color: var(--ink-500); font-weight: 500; }
+
+    /* ── Map section ─────────────────────────────────────────────────────────── */
+    .map-section {
+      border: 1px solid var(--ink-200); border-radius: var(--r-lg);
+      overflow: hidden; margin-bottom: 20px;
+    }
+    .map-header {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--ink-200);
+    }
+    .map-title { font-weight: 600; font-size: 0.875rem; color: var(--ink-700); flex: 1; }
+    .map-legend {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 0.73rem; color: var(--ink-500);
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .dot-high { background: #27ae60; }
+    .dot-mid  { background: #e8a020; }
+    .dot-low  { background: #d94040; }
+    .map-toggle-btn {
+      padding: 4px 10px; border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
+      font-size: 0.74rem; color: var(--ink-500); background: none; cursor: pointer;
+      white-space: nowrap; font-family: var(--font-body);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .map-toggle-btn:hover { color: var(--ink-700); border-color: var(--ink-400); }
+    .map-body {
+      max-height: 460px; overflow: hidden;
+      transition: max-height 0.38s var(--ease-out-quint), opacity 0.3s;
+      opacity: 1;
+    }
+    .map-body.collapsed { max-height: 0 !important; opacity: 0; }
+    #investMap { height: 420px; }
+    /* Leaflet popup RTL fix */
+    .leaflet-popup-content { direction: rtl; text-align: right; font-family: var(--font-body); }
+    .leaflet-popup-content hr { margin: 6px 0; border: none; border-top: 1px solid #eee; }
+
+    /* ── States ──────────────────────────────────────────────────────────────── */
+    .skeleton-wrap { padding: 24px 0; }
+    .skeleton-row {
+      height: 68px;
+      background: linear-gradient(90deg,
+        var(--surface) 25%, var(--ink-100) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+      border-radius: var(--r-md); margin-bottom: 6px;
+    }
+    @keyframes shimmer {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
+    }
+    .state-err-box {
+      background: var(--bad-bg); border: 1px solid oklch(70% 0.1 25);
+      border-radius: var(--r-lg); padding: 20px 24px; margin: 24px 0;
+    }
+    .state-err-box h3 {
+      font-size: 0.95rem; color: var(--bad); font-family: var(--font-body);
+      font-weight: 600; margin-bottom: 4px;
+    }
+    .state-err-box p { font-size: 0.875rem; color: var(--ink-700); }
+
+    /* ── Result meta ─────────────────────────────────────────────────────────── */
+    .result-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+    }
+    .result-count-text { font-size: 0.875rem; color: var(--ink-500); }
+
+    /* ── Areas list ──────────────────────────────────────────────────────────── */
+    .areas-list { border: 1px solid var(--ink-200); border-radius: var(--r-lg); overflow: hidden; }
+    .area-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--ink-100);
+      background: var(--bg);
+      transition: background 0.1s;
+    }
+    .area-row:last-child { border-bottom: none; }
+    .area-row:hover { background: var(--brand-100); }
+    .area-row.rank-top-1 { background: oklch(98.5% 0.022 85); }
+    .area-row.rank-top-2 { background: oklch(98.5% 0.006 230); }
+    .area-row.rank-top-3 { background: oklch(98.5% 0.016 50); }
+    .area-row.rank-top-1:hover { background: oklch(97% 0.036 85); }
+    .area-row.rank-top-2:hover { background: oklch(97% 0.012 230); }
+    .area-row.rank-top-3:hover { background: oklch(97% 0.028 50); }
+
+    .area-row.row-animated {
+      animation: rowReveal 0.42s var(--ease-out-quint) calc(var(--ri, 0) * 28ms) both;
+    }
+    @keyframes rowReveal {
+      from { opacity: 0; transform: translateX(14px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .area-rank {
+      flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; font-weight: 700;
+      background: var(--surface); color: var(--ink-500);
+      font-variant-numeric: tabular-nums;
+    }
+    .area-rank.r1 { background: oklch(79% 0.14 85);  color: oklch(22% 0.1 80); }
+    .area-rank.r2 { background: oklch(80% 0.01 240); color: oklch(25% 0.02 240); }
+    .area-rank.r3 { background: oklch(75% 0.09 55);  color: oklch(24% 0.07 52); }
+
+    .area-info { flex: 0 0 185px; min-width: 0; }
+    .area-name {
+      font-weight: 600; font-size: 0.93rem; color: var(--ink-900);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .area-district-tag {
+      display: inline-block; margin-top: 3px;
+      font-size: 0.69rem; font-weight: 500;
+      color: var(--brand-700); background: var(--brand-100);
+      border-radius: 10px; padding: 1px 7px; white-space: nowrap;
+    }
+
+    .area-viab { flex: 0 0 96px; }
+    .viab-sublbl { font-size: 0.67rem; color: var(--ink-400); margin-bottom: 3px; }
+    .viab-num { font-size: 1.18rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+    .viab-num.viab-good { color: var(--good); }
+    .viab-num.viab-fair { color: var(--fair); }
+    .viab-num.viab-low  { color: var(--bad);  }
+    .viab-bar-track { height: 3px; border-radius: 2px; background: var(--ink-200); overflow: hidden; margin-top: 6px; }
+    .viab-bar { height: 100%; border-radius: 2px; }
+    .viab-bar.viab-good { background: var(--good); }
+    .viab-bar.viab-fair { background: var(--fair); }
+    .viab-bar.viab-low  { background: var(--bad);  }
+
+    .area-metrics { flex: 1 1 0; display: flex; gap: 0; min-width: 0; }
+    .metric-item {
+      flex: 1 1 0; display: flex; flex-direction: column; gap: 2px;
+      min-width: 0; padding: 0 10px;
+      border-right: 1px solid var(--ink-100);
+    }
+    .metric-item:first-child { border-right: none; }
+    .metric-val { font-size: 0.875rem; font-weight: 600; color: var(--ink-900); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .trend-up   { color: var(--good); }
+    .trend-down { color: var(--bad);  }
+    .trend-flat { color: var(--ink-400); }
+    .metric-lbl { font-size: 0.67rem; color: var(--ink-400); }
+
+    .area-action { flex: 0 0 auto; }
+    .btn-browse {
+      padding: 5px 11px;
+      font-size: 0.77rem; font-weight: 600;
+      background: none; border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
+      color: var(--ink-500); cursor: pointer; white-space: nowrap;
+      text-decoration: none; display: inline-block;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-browse:hover { border-color: var(--brand-500); color: var(--brand-700); background: var(--brand-100); }
+
+    .no-results { padding: 48px 24px; text-align: center; font-size: 0.9rem; color: var(--ink-400); }
+
+    /* ── Keyframes ───────────────────────────────────────────────────────────── */
+    @keyframes headerReveal {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes ctrlReveal {
+      from { opacity: 0; } to { opacity: 1; }
+    }
+    @keyframes statsReveal {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Mobile ──────────────────────────────────────────────────────────────── */
+    @media (max-width: 820px) {
+      .controls-inner { padding: 12px 16px 10px; }
+      .results-outer  { padding-left: 12px; padding-right: 12px; }
+      .area-row       { padding: 11px 14px; gap: 10px; }
+      .area-info      { flex: 0 0 140px; }
+      .metric-item:nth-child(3),
+      .metric-item:nth-child(4) { display: none; }
+      .stat-tile { padding: 12px 14px; }
+      #investMap { height: 300px; }
+      .map-body { max-height: 340px; }
+      .goal-btn { flex: 1 1 0; }
+    }
+    @media (max-width: 600px) {
+      .filter-row { gap: 14px; }
+      .map-legend { display: none; }
+      #investMap { height: 250px; }
+      .map-body { max-height: 290px; }
+    }
+    @media (max-width: 520px) {
+      .area-metrics { display: none; }
+      .area-info    { flex: 1 1 0; }
+      .area-viab    { flex: 0 0 76px; }
+    }
+    @media (max-width: 400px) {
+      .area-viab   { display: none; }
+      .area-action { display: none; }
+    }
+
+    /* ── Reduced motion ──────────────────────────────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav" id="mainNav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-icon">🏠</div>
+      <span>יועץ נדל"ן חכם</span>
+    </a>
+    <a href="/" class="nav-back">← חזור לדף הבית</a>
+  </div>
+</nav>
+
+<div class="page">
+  <header class="page-header">
+    <div class="page-header-inner">
+      <h1>אזורי השקעה</h1>
+      <p>דירוג יישובים לפי ציון כדאיות ממוצע, מחיר, מגמה ונפח עסקאות — מתוך 6,609 עסקאות היסטוריות</p>
+    </div>
+  </header>
+
+  <!-- Controls (sticky) -->
+  <div class="controls-section">
+    <div class="controls-inner">
+
+      <!-- Filter row: budget + goal -->
+      <div class="filter-row">
+        <div class="filter-group">
+          <span class="filter-label">
+            תקציב מקסימלי (₪)
+            <span class="info-badge" title="יוצג רק יישובים שהמחיר הממוצע בהם נמוך מהתקציב שהזנת. אפס = ללא הגבלה.">?</span>
+          </span>
+          <div class="budget-wrap">
+            <button class="budget-btn" id="budgetDown" type="button">−</button>
+            <input id="budgetInput" class="budget-input" type="number"
+                   value="2000000" step="250000" min="0" placeholder="ללא הגבלה" dir="ltr" />
+            <button class="budget-btn" id="budgetUp" type="button">+</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <span class="filter-label">
+            מה המטרה שלך?
+            <span class="info-badge" title="בחר מטרה לקבלת דירוג מותאם אישית. הציון מחושב לפי שילוב שונה של כדאיות עסקה ומגמת מחירים.">?</span>
+          </span>
+          <div class="goal-toggle" id="goalToggle">
+            <button class="goal-btn active" data-goal="rental" type="button">
+              <span class="goal-icon">💰</span>
+              <span class="goal-content">
+                <span class="goal-title">תשואה שוטפת</span>
+                <span class="goal-sub">(השכרה) — כדאיות עסקה</span>
+              </span>
+            </button>
+            <button class="goal-btn" data-goal="appreciation" type="button">
+              <span class="goal-icon">📈</span>
+              <span class="goal-content">
+                <span class="goal-title">עליית ערך</span>
+                <span class="goal-sub">(מכירה ברווח) — מגמת עלייה</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sort row -->
+      <div class="sort-row">
+        <span class="sort-label">מיין לפי:</span>
+        <div class="sort-tabs" id="sortTabs"></div>
+      </div>
+
+      <!-- District pills -->
+      <div class="district-row" id="districtRow"></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-outer">
+
+    <!-- Stats strip -->
+    <div class="stats-strip" id="statsStrip" style="display:none">
+      <div class="stat-tile">
+        <span class="stat-num" id="statCities">—</span>
+        <span class="stat-lbl">יישובים מוצגים</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-num" id="statAvgViab">—</span>
+        <span class="stat-lbl">ציון ממוצע</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-num" id="statAvgPrice">—</span>
+        <span class="stat-lbl">מחיר ממוצע</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-num" id="statTopCity">—</span>
+        <span class="stat-lbl">יישוב מוביל</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="stateLoading">
+      <div class="skeleton-wrap">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row" style="animation-delay:0.07s;width:97%"></div>
+        <div class="skeleton-row" style="animation-delay:0.14s;width:94%"></div>
+        <div class="skeleton-row" style="animation-delay:0.21s;width:98%"></div>
+        <div class="skeleton-row" style="animation-delay:0.28s;width:95%"></div>
+        <div class="skeleton-row" style="animation-delay:0.35s;width:96%"></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="state-err-box" id="stateError" style="display:none">
+      <h3 id="errTitle">שגיאה</h3>
+      <p id="errDetail"></p>
+    </div>
+
+    <!-- Data section -->
+    <div id="dataSection" style="display:none">
+
+      <!-- Heatmap -->
+      <div class="map-section">
+        <div class="map-header">
+          <span class="map-title">מפת השקעות</span>
+          <div class="map-legend">
+            <div class="legend-item"><span class="legend-dot dot-high"></span> ציון גבוה</div>
+            <div class="legend-item"><span class="legend-dot dot-mid"></span>  ציון בינוני</div>
+            <div class="legend-item"><span class="legend-dot dot-low"></span>  ציון נמוך</div>
+          </div>
+          <button class="map-toggle-btn" id="mapToggleBtn" type="button">הסתר מפה ▲</button>
+        </div>
+        <div class="map-body" id="mapBody">
+          <div id="investMap"></div>
+        </div>
+      </div>
+
+      <div class="result-meta">
+        <span class="result-count-text" id="resultCountText"></span>
+      </div>
+      <div class="areas-list" id="areasList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ── City coordinates (lat, lng) ──────────────────────────────────────────── */
+const CITY_COORDS = {
+  'ירושלים':               [31.7683, 35.2137],
+  'בית שמש':               [31.7490, 34.9870],
+  'מעלה אדומים':           [31.7718, 35.2987],
+  'גבעת זאב':              [31.8680, 35.1649],
+  'ביתר עילית':            [31.6976, 35.1194],
+  'מודיעין עילית':         [31.9316, 35.0459],
+  'אפרת':                  [31.6609, 35.1527],
+  'קרית ארבע':             [31.5328, 35.1142],
+  'מבשרת ציון':            [31.8046, 35.1524],
+  'תל אביב יפו':           [32.0853, 34.7818],
+  'תל אביב-יפו':           [32.0853, 34.7818],
+  'תל אביב':               [32.0853, 34.7818],
+  'בת ים':                 [32.0179, 34.7504],
+  'חולון':                 [32.0107, 34.7740],
+  'בני ברק':               [32.0833, 34.8333],
+  'גבעתיים':               [32.0696, 34.8115],
+  'רמת גן':                [32.0700, 34.8240],
+  'אור יהודה':             [32.0280, 34.8563],
+  'גבעת שמואל':            [32.0789, 34.8521],
+  'קרית אונו':             [32.0632, 34.8597],
+  'יהוד מונוסון':          [32.0283, 34.8892],
+  'יהוד-מונוסון':          [32.0283, 34.8892],
+  'אלעד':                  [32.0530, 34.9530],
+  'ראשון לציון':           [31.9730, 34.7895],
+  'פתח תקווה':             [32.0878, 34.8867],
+  'רחובות':                [31.8928, 34.8113],
+  'נס ציונה':              [31.9302, 34.7974],
+  'לוד':                   [31.9516, 34.8955],
+  'רמלה':                  [31.9291, 34.8693],
+  'מודיעין מכבים רעות':    [31.8969, 35.0103],
+  'מודיעין-מכבים-רעות':    [31.8969, 35.0103],
+  'רעננה':                 [32.1842, 34.8710],
+  'כפר סבא':               [32.1783, 34.9079],
+  'הוד השרון':             [32.1506, 34.8958],
+  'נתניה':                 [32.3215, 34.8532],
+  'הרצליה':                [32.1643, 34.8436],
+  'רמת השרון':             [32.1459, 34.8366],
+  'ראש העין':              [32.0961, 34.9546],
+  'יבנה':                  [31.8780, 34.7411],
+  'גדרה':                  [31.8108, 34.7745],
+  'באר יעקב':              [31.9385, 34.8371],
+  'שוהם':                  [31.9975, 34.9508],
+  'חיפה':                  [32.7940, 34.9896],
+  'קרית אתא':              [32.8063, 35.1068],
+  'קרית ביאליק':           [32.8295, 35.0843],
+  'קרית מוצקין':           [32.8383, 35.0761],
+  'קרית ים':               [32.8515, 35.0645],
+  'נשר':                   [32.7696, 35.0418],
+  'טירת כרמל':             [32.7600, 34.9699],
+  'זכרון יעקב':            [32.5703, 34.9544],
+  'פרדס חנה כרכור':        [32.4706, 34.9667],
+  'פרדס חנה-כרכור':        [32.4706, 34.9667],
+  'חדרה':                  [32.4341, 34.9191],
+  'אור עקיבא':             [32.5095, 34.9148],
+  'עכו':                   [32.9246, 35.0765],
+  'נהריה':                 [33.0048, 35.0950],
+  'נצרת':                  [32.6996, 35.3035],
+  'נוף הגליל':             [32.7052, 35.3197],
+  'עפולה':                 [32.6059, 35.2897],
+  'קרית שמונה':            [33.2073, 35.5706],
+  'צפת':                   [32.9646, 35.4961],
+  'טבריה':                 [32.7922, 35.5312],
+  'כרמיאל':                [32.9143, 35.2976],
+  'מגדל העמק':             [32.6740, 35.2382],
+  'בית שאן':               [32.4975, 35.4966],
+  'מעלות תרשיחא':          [33.0170, 35.2717],
+  'מעלות-תרשיחא':          [33.0170, 35.2717],
+  'יוקנעם עילית':          [32.6559, 35.1069],
+  'באר שבע':               [31.2529, 34.7915],
+  'אשדוד':                 [31.8040, 34.6553],
+  'אשקלון':                [31.6688, 34.5749],
+  'דימונה':                [31.0686, 35.0334],
+  'קרית מלאכי':            [31.7290, 34.7435],
+  'נתיבות':                [31.4219, 34.5881],
+  'שדרות':                 [31.5241, 34.5961],
+  'אופקים':                [31.3133, 34.6186],
+  'מצפה רמון':             [30.6100, 34.8015],
+  'רהט':                   [31.3928, 34.7547],
+  'קריית גת':              [31.6107, 34.7637],
+  'קרית גת':               [31.6107, 34.7637],
+  'גן יבנה':               [31.7890, 34.7050],
+  'ירוחם':                 [30.9879, 34.9310],
+  'ערד':                   [31.2589, 35.2114],
+  'אילת':                  [29.5581, 34.9482],
+};
+
+/* ── Sort definitions ─────────────────────────────────────────────────────── */
+const SORTS = [
+  { key: 'relevance_score', asc: false, label: 'הכי מתאים לי'  },
+  { key: 'avg_viability',   asc: false, label: 'כדאיות גבוהה'  },
+  { key: 'avg_price',       asc: true,  label: 'מחיר נמוך'     },
+  { key: 'trend_pct_yr',    asc: false, label: 'מגמת עלייה'    },
+  { key: 'deal_count',      asc: false, label: 'נפח עסקאות'    },
+];
+
+/* ── State ────────────────────────────────────────────────────────────────── */
+let _allAreas = [];
+let _areas    = [];
+let _sortIdx  = 0;
+let _district = 'הכל';
+let _budget   = 2_000_000;
+let _goal     = 'rental';
+let _mapVisible = true;
+
+/* ── Map state ────────────────────────────────────────────────────────────── */
+let _map     = null;
+let _markers = null;
+
+/* ── DOM refs ─────────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const statsStrip   = $('statsStrip');
+const stateLoading = $('stateLoading');
+const stateError   = $('stateError');
+const dataSection  = $('dataSection');
+
+/* ── Nav shadow ───────────────────────────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  $('mainNav').classList.toggle('is-scrolled', window.scrollY > 10);
+}, { passive: true });
+
+/* ── Score computation ────────────────────────────────────────────────────── */
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+function computeRelevanceScore(area, goal) {
+  const viab      = area.avg_viability ?? 50;
+  const trend     = area.trend_pct_yr  ?? 0;
+  const trendScore = clamp(50 + trend * 8, 0, 100);
+  const countScore = clamp((area.deal_count ?? 0) / 35 * 100, 0, 100);
+
+  return goal === 'rental'
+    ? 0.65 * viab + 0.25 * trendScore + 0.10 * countScore
+    : 0.55 * trendScore + 0.30 * viab  + 0.15 * countScore;
+}
+
+/* ── Map color from score ─────────────────────────────────────────────────── */
+function scoreToColor(score) {
+  if (score >= 68) return { stroke: '#156a3d', fill: '#27ae60' };
+  if (score >= 54) return { stroke: '#217a45', fill: '#52c882' };
+  if (score >= 40) return { stroke: '#935e00', fill: '#e8a020' };
+  return                  { stroke: '#7a1e1e', fill: '#d94040' };
+}
+
+/* ── Utility ──────────────────────────────────────────────────────────────── */
+function viabCls(s) {
+  if (s == null) return '';
+  return s >= 70 ? 'viab-good' : s >= 45 ? 'viab-fair' : 'viab-low';
+}
+function fmtPrice(p) {
+  if (p == null) return '—';
+  return '₪' + (p / 1e6).toFixed(1) + 'מ\'';
+}
+function fmtTrend(t) {
+  if (t == null || Math.abs(t) < 0.05) return { cls: 'trend-flat', text: '≈0%' };
+  const abs = Math.abs(t).toFixed(1);
+  return t > 0 ? { cls: 'trend-up', text: '↑ ' + abs + '%' }
+               : { cls: 'trend-down', text: '↓ ' + abs + '%' };
+}
+function animNum(el, from, to, dur, fmt) {
+  const t0 = performance.now();
+  (function step(t) {
+    const p    = Math.min((t - t0) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(from + (to - from) * ease);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Show states ──────────────────────────────────────────────────────────── */
+function showLoading() {
+  stateLoading.style.display = '';
+  stateError.style.display   = 'none';
+  dataSection.style.display  = 'none';
+  statsStrip.style.display   = 'none';
+}
+function showError(title, detail) {
+  stateLoading.style.display = 'none';
+  stateError.style.display   = '';
+  dataSection.style.display  = 'none';
+  statsStrip.style.display   = 'none';
+  $('errTitle').textContent  = title  || 'שגיאה';
+  $('errDetail').textContent = detail || '';
+}
+function showData() {
+  stateLoading.style.display = 'none';
+  stateError.style.display   = 'none';
+  dataSection.style.display  = '';
+  statsStrip.style.display   = '';
+}
+
+/* ── Sort tabs ────────────────────────────────────────────────────────────── */
+function buildSortTabs() {
+  $('sortTabs').innerHTML = SORTS.map((s, i) =>
+    `<button class="sort-tab${i === _sortIdx ? ' active' : ''}" data-idx="${i}">${esc(s.label)}</button>`
+  ).join('');
+}
+$('sortTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.sort-tab');
+  if (!btn) return;
+  _sortIdx = parseInt(btn.dataset.idx, 10);
+  buildSortTabs();
+  applyFilterSort(false);
+});
+
+/* ── District pills ───────────────────────────────────────────────────────── */
+const DISTRICT_ORDER = [
+  'הכל', 'מחוז תל אביב', 'מחוז המרכז', 'מחוז ירושלים',
+  'מחוז חיפה', 'מחוז הצפון', 'מחוז הדרום', 'אחר',
+];
+function buildDistrictPills(areas) {
+  const present = new Set(areas.map(a => a.district));
+  const pills   = ['הכל', ...DISTRICT_ORDER.filter(d => d !== 'הכל' && present.has(d))];
+  $('districtRow').innerHTML = pills.map(d =>
+    `<button class="district-pill${d === _district ? ' active' : ''}" data-d="${esc(d)}">${esc(d)}</button>`
+  ).join('');
+}
+$('districtRow').addEventListener('click', e => {
+  const pill = e.target.closest('.district-pill');
+  if (!pill) return;
+  _district = pill.dataset.d;
+  document.querySelectorAll('.district-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.d === _district)
+  );
+  applyFilterSort(false);
+});
+
+/* ── Budget input ─────────────────────────────────────────────────────────── */
+const budgetInput = $('budgetInput');
+budgetInput.addEventListener('change', () => {
+  _budget = parseInt(budgetInput.value, 10) || 0;
+  applyFilterSort(false);
+});
+$('budgetDown').addEventListener('click', () => {
+  _budget = Math.max(0, (_budget || 0) - 250_000);
+  budgetInput.value = _budget || '';
+  applyFilterSort(false);
+});
+$('budgetUp').addEventListener('click', () => {
+  _budget = (_budget || 0) + 250_000;
+  budgetInput.value = _budget;
+  applyFilterSort(false);
+});
+
+/* ── Goal toggle ──────────────────────────────────────────────────────────── */
+$('goalToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.goal-btn');
+  if (!btn) return;
+  const newGoal = btn.dataset.goal;
+  if (newGoal === _goal) return;
+  _goal = newGoal;
+  document.querySelectorAll('.goal-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.goal === _goal)
+  );
+  applyFilterSort(false);
+});
+
+/* ── Map toggle ───────────────────────────────────────────────────────────── */
+$('mapToggleBtn').addEventListener('click', () => {
+  _mapVisible = !_mapVisible;
+  $('mapBody').classList.toggle('collapsed', !_mapVisible);
+  $('mapToggleBtn').textContent = _mapVisible ? 'הסתר מפה ▲' : 'הצג מפה ▼';
+  if (_mapVisible && _map) {
+    setTimeout(() => _map.invalidateSize(), 380);
+  }
+});
+
+/* ── Init Leaflet map ─────────────────────────────────────────────────────── */
+function initMap() {
+  _map = L.map('investMap', {
+    preferCanvas: true,
+    zoomControl: true,
+    attributionControl: true,
+  }).setView([31.8, 34.9], 8);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 18,
+  }).addTo(_map);
+
+  _markers = L.layerGroup().addTo(_map);
+}
+
+/* ── Update map markers ───────────────────────────────────────────────────── */
+function updateMapMarkers(areas) {
+  if (!_map || !_markers) return;
+  _markers.clearLayers();
+
+  areas.forEach(area => {
+    const coords = CITY_COORDS[area.city];
+    if (!coords) return;
+
+    const score  = area.relevance_score ?? computeRelevanceScore(area, _goal);
+    const colors = scoreToColor(score);
+    const radius = clamp(Math.sqrt(area.deal_count || 1) * 1.9, 7, 22);
+    const trend  = fmtTrend(area.trend_pct_yr);
+
+    const marker = L.circleMarker(coords, {
+      radius,
+      color:       colors.stroke,
+      fillColor:   colors.fill,
+      fillOpacity: 0.80,
+      weight:      1.5,
+    });
+
+    marker.bindPopup(
+      `<strong style="font-size:0.93rem">${esc(area.city)}</strong><br>` +
+      `<span style="font-size:0.78rem;color:#666">${esc(area.district || '')}</span>` +
+      `<hr>` +
+      `ציון: <strong>${Math.round(score)}</strong><br>` +
+      `מחיר ממוצע: ${fmtPrice(area.avg_price)}<br>` +
+      `מגמה: <span style="color:${trend.cls === 'trend-up' ? '#27ae60' : trend.cls === 'trend-down' ? '#d94040' : '#888'}">${trend.text}</span><br>` +
+      `עסקאות: ${area.deal_count || 0}`,
+      { maxWidth: 200 }
+    );
+
+    _markers.addLayer(marker);
+  });
+}
+
+/* ── Filter + sort ────────────────────────────────────────────────────────── */
+function applyFilterSort(animate) {
+  let areas = _district === 'הכל'
+    ? _allAreas
+    : _allAreas.filter(a => a.district === _district);
+
+  // Budget filter
+  if (_budget > 0) {
+    areas = areas.filter(a => a.avg_price == null || a.avg_price <= _budget);
+  }
+
+  // Compute goal-based relevance score for each area
+  areas = areas.map(a => ({ ...a, relevance_score: computeRelevanceScore(a, _goal) }));
+
+  // Sort
+  const s = SORTS[_sortIdx];
+  areas = [...areas].sort((a, b) => {
+    const av = a[s.key] ?? (s.asc ?  Infinity : -Infinity);
+    const bv = b[s.key] ?? (s.asc ?  Infinity : -Infinity);
+    return s.asc ? (av - bv) : (bv - av);
+  });
+
+  _areas = areas;
+  updateStats(areas);
+  renderAreasList(areas, animate);
+  updateMapMarkers(areas);
+  showData();
+  $('resultCountText').textContent = `${areas.length} יישובים מוצגים`;
+}
+
+/* ── Stats strip ──────────────────────────────────────────────────────────── */
+function updateStats(areas) {
+  if (!areas.length) {
+    ['statCities','statAvgViab','statAvgPrice','statTopCity'].forEach(id => $(id).textContent = '—');
+    return;
+  }
+  const avgViab  = areas.reduce((s, a) => s + (a.relevance_score || 0), 0) / areas.length;
+  const avgPrice = areas.reduce((s, a) => s + (a.avg_price || 0), 0) / areas.length;
+  const topCity  = [...areas].sort((a, b) => (b.relevance_score||0) - (a.relevance_score||0))[0];
+
+  animNum($('statCities'),   0, areas.length, 500, v => Math.round(v).toString());
+  animNum($('statAvgViab'),  0, avgViab,       700, v => v.toFixed(1));
+  animNum($('statAvgPrice'), 0, avgPrice,      700, v => '₪' + (v / 1e6).toFixed(1) + 'מ\'');
+  $('statTopCity').textContent = topCity ? topCity.city : '—';
+}
+
+/* ── Render list ──────────────────────────────────────────────────────────── */
+function renderAreasList(areas, animate) {
+  const list = $('areasList');
+  if (!areas.length) {
+    list.innerHTML = '<div class="no-results">אין יישובים תואמים לסינון הנוכחי.</div>';
+    return;
+  }
+
+  list.innerHTML = areas.map((area, i) => {
+    const rank    = i + 1;
+    const rankCls = rank <= 3 ? `r${rank}` : '';
+    const rowCls  = rank <= 3 ? `rank-top-${rank}` : '';
+    const ri      = animate ? Math.min(i, 20) : 0;
+    const animCls = animate ? 'row-animated' : '';
+    const viab    = area.avg_viability;
+    const cls     = viabCls(viab);
+    const relScore = area.relevance_score;
+    const displayScore = relScore != null ? Math.round(relScore).toString() : (viab != null ? Math.round(viab).toString() : '—');
+    const barW    = relScore != null ? clamp(relScore, 0, 100).toFixed(0) : (viab != null ? clamp(viab, 0, 100).toFixed(0) : '0');
+    const barCls  = relScore != null ? viabCls(relScore) : cls;
+    const trend   = fmtTrend(area.trend_pct_yr);
+    const socioStr = area.avg_socio != null ? area.avg_socio.toFixed(1) : '—';
+    const href    = '/browse?city=' + encodeURIComponent(area.city);
+
+    return `<div class="area-row ${rowCls} ${animCls}" style="--ri:${ri}">
+      <div class="area-rank ${rankCls}">${rank}</div>
+      <div class="area-info">
+        <div class="area-name">${esc(area.city)}</div>
+        <span class="area-district-tag">${esc(area.district || 'אחר')}</span>
+      </div>
+      <div class="area-viab">
+        <div class="viab-sublbl">ציון מותאם</div>
+        <span class="viab-num ${barCls}">${displayScore}</span>
+        <div class="viab-bar-track"><div class="viab-bar ${barCls}" style="width:${barW}%"></div></div>
+      </div>
+      <div class="area-metrics">
+        <div class="metric-item">
+          <span class="metric-val">${fmtPrice(area.avg_price)}</span>
+          <span class="metric-lbl">מחיר ממוצע</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-val ${trend.cls}">${esc(trend.text)}</span>
+          <span class="metric-lbl">מגמה שנתית</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-val">${area.deal_count || 0}</span>
+          <span class="metric-lbl">עסקאות</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-val">${socioStr}</span>
+          <span class="metric-lbl">מדד חברתי</span>
+        </div>
+      </div>
+      <div class="area-action">
+        <a href="${href}" class="btn-browse">עיין בנכסים</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Init ─────────────────────────────────────────────────────────────────── */
+async function init() {
+  showLoading();
+  buildSortTabs();
+  try {
+    const data = await fetch('/api/areas').then(r => r.json());
+    if (!Array.isArray(data)) { showError('שגיאה', data.error || 'תגובה לא תקינה מהשרת.'); return; }
+    _allAreas = data;
+    buildDistrictPills(_allAreas);
+    applyFilterSort(true);
+    // Init map after data renders so container has dimensions
+    requestAnimationFrame(() => {
+      initMap();
+      updateMapMarkers(_areas);
+    });
+  } catch (e) {
+    showError('שגיאת חיבור', 'ודא שהשרת פועל ונסה שוב.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
