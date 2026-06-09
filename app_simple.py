@@ -25,6 +25,7 @@ st.set_page_config(
     page_icon="🏠",
 )
 
+
 st.markdown("""
 <style>
   /* ── Font & Base ─────────────────────────────────────────────────────── */
