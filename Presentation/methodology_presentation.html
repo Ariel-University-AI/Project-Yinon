@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>נדלניסט — מתודולוגיית פיתוח</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@400;700;900&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design Tokens ── */
+    :root {
+      --brand:        #C77261;
+      --brand-light:  #B85C4A;
+      --brand-dark:   #A04535;
+      --bg:           #FDFAF8;
+      --surface:      #F5EFE9;
+      --surface2:     #EDE5DC;
+      --border:       rgba(199,114,97,.22);
+      --text:         #1C1410;
+      --muted:        rgba(28,20,16,.5);
+      --good:         #2E7D46;
+      --fair:         #A0720A;
+      --bad:          #C03030;
+      --font-serif:   'Noto Serif Hebrew', serif;
+      --font-sans:    'Rubik', sans-serif;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      direction: rtl;
+      background: var(--bg);
+    }
+
+    /* ── Slide deck ── */
+    .deck {
+      position: relative;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+    }
+    @media (min-width: 769px) {
+      .deck {
+        max-width: calc(100vh * 16 / 9);
+        max-height: calc(100vw * 9 / 16);
+        margin: auto;
+        position: absolute;
+        inset: 0;
+      }
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 56px 72px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .45s ease;
+      overflow: hidden;
+    }
+    .slide.active { opacity:1; visibility:visible; }
+
+    /* ── Progress bar ── */
+    #progress {
+      position: fixed; top:0; left:0;
+      height:3px;
+      background: linear-gradient(90deg, var(--brand-dark), var(--brand-light));
+      transition: width .3s;
+      z-index: 9999;
+    }
+
+    /* ── Nav ── */
+    .nav {
+      position: fixed; bottom:28px; left:50%; transform:translateX(-50%);
+      display:flex; align-items:center; gap:18px; z-index:9999;
+      background: rgba(253,250,248,.85);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 2px 16px rgba(199,114,97,.12);
+      padding: 8px 20px;
+      border-radius: 40px;
+      border: 1px solid var(--border);
+    }
+    .nav-btn {
+      background: none; border: 1px solid var(--border);
+      color: var(--brand-dark); width:36px; height:36px;
+      border-radius: 50%; cursor:pointer; font-size:16px;
+      transition: background .2s, border-color .2s;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .nav-btn:hover { background: rgba(199,114,97,.12); border-color: var(--brand); }
+    .counter { font-size:13px; color: var(--muted); letter-spacing:.04em; }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(28px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    @keyframes scaleIn {
+      from { opacity:0; transform:scale(.92); }
+      to   { opacity:1; transform:scale(1); }
+    }
+    @keyframes shimmer {
+      0%,100% { opacity:1; } 50% { opacity:.6; }
+    }
+    .slide.active .au  { animation: fadeUp  .6s ease-out forwards; }
+    .slide.active .au2 { animation: fadeUp  .6s .15s ease-out both; }
+    .slide.active .au3 { animation: fadeUp  .6s .3s  ease-out both; }
+    .slide.active .au4 { animation: fadeUp  .6s .45s ease-out both; }
+    .slide.active .au5 { animation: fadeUp  .6s .6s  ease-out both; }
+    .slide.active .si  { animation: scaleIn .6s ease-out both; }
+
+    /* ── Background grid ── */
+    .bg-grid {
+      position: absolute; inset:0;
+      background-image:
+        linear-gradient(rgba(199,114,97,.10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(199,114,97,.10) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events:none;
+    }
+
+    /* ── Typography helpers ── */
+    .section-label {
+      font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+      color: var(--brand); font-family:var(--font-sans); font-weight:500;
+    }
+    .slide-title {
+      font-family: var(--font-serif);
+      font-size: clamp(28px, 5.5vw, 68px);
+      font-weight: 900;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--brand-dark) 0%, var(--text) 60%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .slide-subtitle {
+      font-size: clamp(14px, 2vw, 22px);
+      color: var(--muted);
+      font-weight:300;
+    }
+    h2 {
+      font-family: var(--font-serif);
+      font-size: clamp(20px, 3.2vw, 42px);
+      font-weight:700;
+      color: var(--text);
+    }
+    h3 {
+      font-family: var(--font-sans);
+      font-size: clamp(13px, 1.8vw, 20px);
+      font-weight:500;
+      color: var(--brand-light);
+    }
+    p, li {
+      font-size: clamp(12px, 1.4vw, 17px);
+      color: var(--muted);
+      line-height: 1.65;
+      font-weight:300;
+    }
+    li { margin-right: 1.2em; }
+    strong { color: var(--text); font-weight:500; }
+    .accent { color: var(--brand-light); }
+
+    /* ── Divider ── */
+    .divider {
+      width:60px; height:3px;
+      background: linear-gradient(90deg, var(--brand), transparent);
+      margin: 12px 0;
+      border-radius:2px;
+    }
+
+    /* ── Cards ── */
+    .card-grid {
+      display:grid; gap:16px; width:100%;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius:12px;
+      padding: 20px 22px;
+      position:relative;
+      overflow:hidden;
+    }
+    .card::before {
+      content:'';
+      position:absolute; top:0; right:0;
+      width:3px; height:100%;
+      background: var(--brand);
+    }
+    .card-icon {
+      font-size: clamp(20px, 3vw, 32px);
+      margin-bottom:8px;
+      display:block;
+    }
+
+    /* ── Badge ── */
+    .badge {
+      display:inline-block;
+      padding: 3px 10px;
+      border-radius:20px;
+      font-size:11px;
+      font-weight:500;
+      letter-spacing:.04em;
+      background: rgba(199,114,97,.15);
+      color: var(--brand-light);
+      border: 1px solid var(--border);
+    }
+    .badge.good { background:rgba(106,191,123,.12); color:var(--good); border-color:rgba(106,191,123,.3); }
+    .badge.fair { background:rgba(232,184,75,.12);  color:var(--fair); border-color:rgba(232,184,75,.3); }
+
+    /* ── Stat blocks ── */
+    .stat-grid {
+      display:grid; gap:14px; width:100%;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius:10px;
+      padding: 18px 20px;
+      text-align:center;
+    }
+    .stat-num {
+      font-family: var(--font-serif);
+      font-size: clamp(22px, 4vw, 52px);
+      font-weight:900;
+      color: var(--brand-light);
+      line-height:1;
+    }
+    .stat-label {
+      font-size: clamp(10px, 1.2vw, 13px);
+      color: var(--muted);
+      margin-top:6px;
+    }
+
+    /* ── Pipeline steps ── */
+    .pipeline {
+      display:flex; align-items:stretch;
+      gap:0; width:100%;
+    }
+    .pipe-step {
+      flex:1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px 12px;
+      text-align:center;
+      position:relative;
+    }
+    .pipe-step:first-child { border-radius:10px 0 0 10px; }
+    .pipe-step:last-child  { border-radius:0 10px 10px 0; }
+    .pipe-step::after {
+      content:'←';
+      position:absolute; left:-14px; top:50%;
+      transform:translateY(-50%);
+      color: var(--brand);
+      font-size:18px;
+      z-index:2;
+    }
+    .pipe-step:first-child::after { display:none; }
+    .pipe-num {
+      display:block;
+      font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+      color: var(--brand); margin-bottom:6px; font-weight:500;
+    }
+    .pipe-title {
+      font-size: clamp(10px, 1.3vw, 14px);
+      font-weight:500; color: var(--text);
+    }
+    .pipe-sub {
+      font-size: clamp(9px, 1vw, 12px);
+      color: var(--muted); margin-top:4px;
+    }
+
+    /* ── Code block ── */
+    .code-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-family: 'Courier New', monospace;
+      font-size: clamp(9px, 1.1vw, 13px);
+      color: var(--brand-light);
+      text-align: left;
+      direction: ltr;
+      width:100%;
+    }
+    .code-comment { color: var(--muted); }
+    .code-key    { color: #B5CEA8; }
+    .code-val    { color: #CE9178; }
+
+    /* ── Tag cloud ── */
+    .tag-cloud {
+      display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+    }
+    .tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius:6px;
+      padding: 6px 14px;
+      font-size: clamp(10px, 1.2vw, 14px);
+      font-weight:400;
+      color: var(--text);
+      transition: border-color .2s;
+    }
+    .tag:hover { border-color: var(--brand); }
+    .tag.highlight { border-color: var(--brand); color: var(--brand-light); }
+
+    /* ── Tool modes ── */
+    .mode-row {
+      display:flex; gap:12px; width:100%;
+    }
+    .mode-card {
+      flex:1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius:12px;
+      padding: 18px 16px;
+      text-align:center;
+    }
+    .mode-card.active-mode { border-color: var(--brand); }
+    .mode-num {
+      font-family: var(--font-serif);
+      font-size:clamp(28px,4vw,48px);
+      font-weight:900;
+      color: var(--brand-light);
+      opacity:.3;
+      line-height:1;
+    }
+
+    /* ── Chart container ── */
+    .chart-wrap {
+      width:100%;
+      height: clamp(150px, 28vh, 280px);
+      position:relative;
+    }
+
+    /* ── Two-col layout ── */
+    .two-col {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:24px;
+      width:100%;
+      align-items:start;
+    }
+
+    /* ── Three-col ── */
+    .three-col {
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:16px;
+      width:100%;
+    }
+
+    /* ── Wide content ── */
+    .content-wrap {
+      width:100%; max-width:100%;
+      display:flex; flex-direction:column;
+      align-items:flex-start;
+      gap:16px;
+    }
+
+    /* ── Decorative circle ── */
+    .deco-circle {
+      position:absolute;
+      border-radius:50%;
+      pointer-events:none;
+      opacity:.06;
+    }
+
+    /* ── Slide 1: Title ── */
+    #s1 { text-align:center; align-items:center; }
+    #s1 .logo-text {
+      font-family: var(--font-serif);
+      font-size: clamp(52px, 11vw, 130px);
+      font-weight:900;
+      background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 55%, #C77261 100%);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+      line-height:1;
+    }
+    #s1 .tagline {
+      font-size: clamp(14px, 2.2vw, 26px);
+      color: var(--muted);
+      font-weight:300;
+      letter-spacing:.04em;
+    }
+    #s1 .meta-row {
+      display:flex; gap:20px; justify-content:center;
+      margin-top:8px;
+    }
+    #s1 .meta-item {
+      font-size: clamp(10px, 1.3vw, 14px);
+      color: rgba(28,20,16,.38);
+      letter-spacing:.06em;
+    }
+
+    /* ── Slide backgrounds ── */
+    .bg-terracotta::before {
+      content:'';
+      position:absolute; inset:0;
+      background: radial-gradient(ellipse 80% 60% at 20% 50%, rgba(199,114,97,.08) 0%, transparent 70%);
+      pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 1 — Title
+══════════════════════════════════════════════════ -->
+<div class="slide active" id="s1">
+  <div class="bg-grid"></div>
+  <div class="deco-circle" style="width:500px;height:500px;background:var(--brand);top:-180px;right:-180px;"></div>
+  <div class="deco-circle" style="width:300px;height:300px;background:var(--brand);bottom:-100px;left:-100px;"></div>
+
+  <div class="logo-text au">נדלניסט</div>
+  <div class="divider si" style="width:80px; margin:16px auto;"></div>
+  <div class="tagline au2">מתודולוגיית פיתוח — יועץ נדל״ן חכם מבוסס למידת מכונה</div>
+  <div class="meta-row au3">
+    <span class="meta-item">📍 אוניברסיטת אריאל</span>
+    <span class="meta-item">·</span>
+    <span class="meta-item">🎓 גיאודזיה מתמטית — אלי ספרא</span>
+    <span class="meta-item">·</span>
+    <span class="meta-item">📅 2025–2026</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 2 — Project Overview
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">סקירת הפרויקט</div>
+    <h2 class="au2">מה בנינו?</h2>
+    <div class="divider au2"></div>
+    <div class="three-col au3">
+      <div class="card">
+        <span class="card-icon">🏘️</span>
+        <h3>מאגר נתונים</h3>
+        <p>6,609 עסקאות נדל"ן אמיתיות ממינהל רכוש המדינה — מחיר, כתובת, מ"ר, חדרים, שנה.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🤖</span>
+        <h3>מודל ML</h3>
+        <p>XGBoost מנבא שווי הוגן לכל נכס. R² = 74%, RMSE ≈ ±607,000 ₪.</p>
+      </div>
+      <div class="card">
+        <span class="card-icon">🌐</span>
+        <h3>אפליקציה</h3>
+        <p>ממשק FastAPI + 4 דפי HTML עם מפות Leaflet, Streamlit לפרוטוטייפ.</p>
+      </div>
+    </div>
+    <div class="stat-grid au4" style="grid-template-columns:repeat(4,1fr);">
+      <div class="stat-card">
+        <div class="stat-num">6,609</div>
+        <div class="stat-label">עסקאות אמיתיות</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">74%</div>
+        <div class="stat-label">R² דיוק מודל</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">4</div>
+        <div class="stat-label">דפי ממשק</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">3</div>
+        <div class="stat-label">כלי ניתוח</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 3 — Data Sources
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">שלב א׳</div>
+    <h2 class="au2">איסוף נתונים</h2>
+    <div class="divider au2"></div>
+    <div class="three-col au3">
+      <div class="card">
+        <span class="card-icon">🏛️</span>
+        <h3>רשות המיסים</h3>
+        <p><strong>nadlan.gov.il</strong></p>
+        <br/>
+        <p>עסקאות מכר דירות: מחיר, כתובת, גוש/חלקה, מ"ר, מספר חדרים, שנת בנייה, תאריך עסקה.</p>
+        <br/>
+        <span class="badge">ALL_DATA.xlsx</span>
+      </div>
+      <div class="card">
+        <span class="card-icon">📊</span>
+        <h3>הלשכה המרכזית לסטטיסטיקה</h3>
+        <p><strong>מדד חברתי-כלכלי</strong> לפי עיר/ישוב (CBS). אינדקס 1–10 המשפיע על ערך הנכס.</p>
+        <br/>
+        <span class="badge">socio_index</span>
+      </div>
+      <div class="card">
+        <span class="card-icon">🗺️</span>
+        <h3>OpenStreetMap / Overpass</h3>
+        <p>נקודות עניין (POI): בתי ספר, בתי חולים, פארקים, תחבורה, מסחר — 23 MB של נתוני geo.</p>
+        <br/>
+        <span class="badge">ISRAEL_POINTS_FILTERED_GEO.csv</span>
+      </div>
+    </div>
+    <div class="card au4" style="background:var(--surface2);">
+      <div class="pipeline">
+        <div class="pipe-step">
+          <span class="pipe-num">קובץ מקור</span>
+          <div class="pipe-title">ALL_DATA.xlsx</div>
+          <div class="pipe-sub">6 MB — Excel</div>
+        </div>
+        <div class="pipe-step">
+          <span class="pipe-num">נתוני רקע</span>
+          <div class="pipe-title">CBS Index</div>
+          <div class="pipe-sub">מדד כלכלי-חברתי</div>
+        </div>
+        <div class="pipe-step">
+          <span class="pipe-num">מיקום גאוגרפי</span>
+          <div class="pipe-title">OSM / Overpass</div>
+          <div class="pipe-sub">lat, lon, category</div>
+        </div>
+        <div class="pipe-step">
+          <span class="pipe-num">פלט</span>
+          <div class="pipe-title">DATA.csv</div>
+          <div class="pipe-sub">data_for_ML.csv</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 4 — Data Cleaning (LAMAS Pipeline)
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">שלב ב׳</div>
+    <h2 class="au2">ניקוי וסינון נתונים — LAMAS_EDA_2M</h2>
+    <div class="divider au2"></div>
+    <div class="three-col au3">
+      <div class="card">
+        <span class="card-icon">1️⃣</span>
+        <h3>PART 1 — טעינה ראשונית</h3>
+        <p><code style="color:var(--brand-light);font-size:11px;">gen_preview.py</code></p>
+        <br/>
+        <ul>
+          <li>טעינת הנתונים הגולמיים</li>
+          <li>תצוגת 5 שורות ראשונות</li>
+          <li>סטטיסטיקה בסיסית (min/max/mean)</li>
+          <li>פלט: <strong>data_preview.html</strong></li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="card-icon">2️⃣</span>
+        <h3>PART 2 — איתור בעיות</h3>
+        <p><code style="color:var(--brand-light);font-size:11px;">check_duplicates.py · clean_missing.py</code></p>
+        <br/>
+        <ul>
+          <li>זיהוי רשומות כפולות</li>
+          <li>ניתוח ערכים חסרים (NaN)</li>
+          <li>מחיקת/מילוי ערכים חסרים</li>
+          <li>פלטים: duplicates_report.html, missing_report.html</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="card-icon">3️⃣</span>
+        <h3>PART 3 — ניקוי סופי</h3>
+        <p><code style="color:var(--brand-light);font-size:11px;">prepare_ml_data.py</code></p>
+        <br/>
+        <ul>
+          <li>הסרת חריגים (outliers)</li>
+          <li>סינון רק דירות (לא קרקעות)</li>
+          <li>הוספת מדד חברתי-כלכלי</li>
+          <li>פלט: <strong>apartments_ml_ready.csv</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div class="au4" style="display:flex; gap:12px; width:100%;">
+      <div class="stat-card" style="flex:1;">
+        <div class="stat-num" style="font-size:clamp(18px,2.5vw,32px);">DATA.csv</div>
+        <div class="stat-label">קובץ גולמי</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--brand);font-size:22px;">→</div>
+      <div class="stat-card" style="flex:1;border-color:var(--fair);">
+        <div class="stat-num" style="font-size:clamp(18px,2.5vw,32px);color:var(--fair);">ניקוי</div>
+        <div class="stat-label">all_data_clean.csv (4.7 MB)</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--brand);font-size:22px;">→</div>
+      <div class="stat-card" style="flex:1;border-color:var(--good);">
+        <div class="stat-num" style="font-size:clamp(18px,2.5vw,32px);color:var(--good);">6,609</div>
+        <div class="stat-label">apartments_ml_ready.csv</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 5 — EDA
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="bg-grid"></div>
+  <div class="two-col" style="gap:28px; align-items:center; width:100%;">
+    <div class="content-wrap">
+      <div class="section-label au">שלב ג׳</div>
+      <h2 class="au2">EDA — ניתוח חקרני</h2>
+      <div class="divider au2"></div>
+      <div class="au3">
+        <div class="card" style="margin-bottom:10px;">
+          <h3>📄 דוחות HTML אינטראקטיביים</h3>
+          <br/>
+          <ul>
+            <li><strong>eda.html</strong> — התפלגות מחירים לפי עיר ומ"ר</li>
+            <li><strong>eda_app.html</strong> — ממשק אינטראקטיבי לחקירת נתונים</li>
+            <li><strong>bat_yam_eda.html</strong> — Case Study: בת ים</li>
+            <li><strong>duplicates_report.html</strong> — ניתוח כפילויות</li>
+            <li><strong>missing_report.html</strong> — ניתוח ערכים חסרים</li>
+            <li><strong>nadlan_preview.html</strong> — תצוגת מאגר (337 KB)</li>
+          </ul>
+        </div>
+        <div class="au4">
+          <h3 style="color:var(--text);margin-bottom:8px;">ממצאים מרכזיים</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <span class="badge good">מ"ר ↔ מחיר: קורלציה חזקה</span>
+            <span class="badge fair">מדד CBS משפיע על ± 20%</span>
+            <span class="badge">פריסה לא אחידה: TLV גבוה</span>
+            <span class="badge">ממצא: 340 כפילויות הוסרו</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="au3" style="width:100%;">
+      <div class="chart-wrap">
+        <canvas id="priceChart"></canvas>
+      </div>
+      <div class="chart-wrap" style="margin-top:14px;height:clamp(100px,16vh,180px);">
+        <canvas id="roomsChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 6 — Feature Engineering
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">שלב ד׳</div>
+    <h2 class="au2">הנדסת פיצ׳רים</h2>
+    <div class="divider au2"></div>
+    <div class="three-col au3">
+      <div class="card">
+        <h3>פיצ׳רים גולמיים</h3>
+        <br/>
+        <ul>
+          <li><strong>area_m2</strong> — שטח במ"ר</li>
+          <li><strong>rooms</strong> — מספר חדרים</li>
+          <li><strong>year_built</strong> — שנת בנייה</li>
+          <li><strong>city_code</strong> — קוד עיר (label encoded)</li>
+          <li><strong>price</strong> — מחיר מכירה (TARGET)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>פיצ׳רים נגזרים</h3>
+        <br/>
+        <ul>
+          <li><strong>socio_index</strong> — מדד CBS (1–10)</li>
+          <li><strong>price_per_m2</strong> — מחיר למ"ר</li>
+          <li><strong>age</strong> — גיל הנכס (2025 − year)</li>
+          <li><strong>city_median</strong> — חציון עיר</li>
+          <li><strong>delta_from_median</strong> — סטייה ממחיר שוק</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>עיבוד נתונים</h3>
+        <br/>
+        <ul>
+          <li>Label Encoding לעיר</li>
+          <li>הסרת outliers: מחיר &lt;200K או &gt;10M</li>
+          <li>הסרת שטח &lt;20 מ"ר</li>
+          <li>train/test split: 80/20</li>
+          <li>פלט: <strong>apartments_ml_ready.csv</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div class="code-block au4">
+      <span class="code-comment"># prepare_ml_data.py — pipeline עיקרי</span><br/>
+      <span class="code-key">features</span> = [<span class="code-val">'area_m2'</span>, <span class="code-val">'rooms'</span>, <span class="code-val">'year_built'</span>, <span class="code-val">'city_code'</span>, <span class="code-val">'socio_index'</span>]<br/>
+      df = df[(df[<span class="code-val">'price'</span>] &gt; 200_000) &amp; (df[<span class="code-val">'price'</span>] &lt; 10_000_000)]<br/>
+      df[<span class="code-val">'city_code'</span>] = LabelEncoder().fit_transform(df[<span class="code-val">'city_name'</span>])<br/>
+      df.to_csv(<span class="code-val">'apartments_ml_ready.csv'</span>, index=False)
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 7 — ML Model (XGBoost)
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="bg-grid"></div>
+  <div class="two-col" style="width:100%;align-items:center;">
+    <div class="content-wrap">
+      <div class="section-label au">שלב ה׳</div>
+      <h2 class="au2">מודל XGBoost</h2>
+      <div class="divider au2"></div>
+      <div class="card au3">
+        <h3>train_model.py</h3>
+        <br/>
+        <div class="code-block" style="font-size:clamp(9px,1vw,12px);">
+          <span class="code-key">model</span> = XGBRegressor(<br/>
+          &nbsp;&nbsp;<span class="code-key">n_estimators</span>=<span class="code-val">500</span>,<br/>
+          &nbsp;&nbsp;<span class="code-key">max_depth</span>=<span class="code-val">6</span>,<br/>
+          &nbsp;&nbsp;<span class="code-key">learning_rate</span>=<span class="code-val">0.05</span>,<br/>
+          &nbsp;&nbsp;<span class="code-key">subsample</span>=<span class="code-val">0.8</span>,<br/>
+          &nbsp;&nbsp;<span class="code-key">random_state</span>=<span class="code-val">42</span><br/>
+          )<br/>
+          model.fit(X_train, y_train)<br/>
+          joblib.dump(model, <span class="code-val">'model.pkl'</span>)
+        </div>
+      </div>
+      <div class="card au4">
+        <h3>למה XGBoost?</h3>
+        <br/>
+        <ul>
+          <li>טיפול טוב בנתונים קטגוריאליים (עיר)</li>
+          <li>עמיד לפני outliers</li>
+          <li>מהיר לאימון ולהסקה</li>
+          <li>פיצ׳ר importance מובנה</li>
+        </ul>
+      </div>
+    </div>
+    <div class="au3" style="width:100%;">
+      <div class="stat-grid" style="grid-template-columns:1fr 1fr; margin-bottom:14px;">
+        <div class="stat-card" style="border-color:var(--good);">
+          <div class="stat-num" style="color:var(--good);">74%</div>
+          <div class="stat-label">R² Score</div>
+        </div>
+        <div class="stat-card" style="border-color:var(--fair);">
+          <div class="stat-num" style="font-size:clamp(16px,2.2vw,28px);color:var(--fair);">±607K₪</div>
+          <div class="stat-label">RMSE ממוצע</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="font-size:clamp(16px,2.2vw,28px);">500</div>
+          <div class="stat-label">עצי החלטה</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="font-size:clamp(16px,2.2vw,28px);">6,609</div>
+          <div class="stat-label">דגימות אימון</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="featImportance"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 8 — Libraries & Stack
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">הכלים שהורדנו</div>
+    <h2 class="au2">ספריות וסטאק טכנולוגי</h2>
+    <div class="divider au2"></div>
+    <div class="two-col au3">
+      <div>
+        <h3 style="margin-bottom:12px;">🐍 Python Backend</h3>
+        <div class="tag-cloud">
+          <span class="tag highlight">xgboost</span>
+          <span class="tag highlight">pandas</span>
+          <span class="tag highlight">numpy</span>
+          <span class="tag highlight">scikit-learn</span>
+          <span class="tag highlight">fastapi</span>
+          <span class="tag">uvicorn</span>
+          <span class="tag">joblib</span>
+          <span class="tag">folium</span>
+          <span class="tag">requests</span>
+          <span class="tag">streamlit</span>
+          <span class="tag">curl_cffi</span>
+          <span class="tag">matplotlib</span>
+        </div>
+        <br/>
+        <h3 style="margin-bottom:12px;">🗄️ Data</h3>
+        <div class="tag-cloud">
+          <span class="tag">openpyxl</span>
+          <span class="tag">csv / json</span>
+          <span class="tag">OSM Overpass API</span>
+          <span class="tag">ITM↔WGS84 Proj</span>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px;">🌐 Frontend</h3>
+        <div class="tag-cloud">
+          <span class="tag highlight">Leaflet.js</span>
+          <span class="tag highlight">Chart.js</span>
+          <span class="tag highlight">HTML5 / CSS3</span>
+          <span class="tag">Overpass API</span>
+          <span class="tag">Geocoding API</span>
+          <span class="tag">Next.js 16</span>
+          <span class="tag">React 19</span>
+          <span class="tag">Tailwind 4</span>
+          <span class="tag">shadcn/ui</span>
+        </div>
+        <br/>
+        <h3 style="margin-bottom:12px;">☁️ Deployment</h3>
+        <div class="tag-cloud">
+          <span class="tag">Railway</span>
+          <span class="tag">Procfile</span>
+          <span class="tag">Heroku-compatible</span>
+          <span class="tag">uvicorn[standard]</span>
+        </div>
+      </div>
+    </div>
+    <div class="code-block au4">
+      <span class="code-comment"># requirements.txt</span><br/>
+      <span class="code-key">fastapi</span> · <span class="code-key">uvicorn[standard]</span> · <span class="code-key">numpy</span> · <span class="code-key">pandas</span> · <span class="code-key">joblib</span> · <span class="code-key">xgboost</span> · <span class="code-key">scikit-learn</span> · <span class="code-key">requests</span> · <span class="code-key">curl_cffi</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 9 — app_simple.py (Streamlit)
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s9">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">שלב ו׳</div>
+    <h2 class="au2">app_simple.py — פרוטוטייפ Streamlit</h2>
+    <div class="divider au2"></div>
+    <div class="au3" style="width:100%;display:flex;gap:10px;align-items:flex-start;">
+      <div style="flex:0 0 auto;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;">
+        <div style="font-size:clamp(28px,5vw,58px);font-family:var(--font-serif);font-weight:900;color:var(--brand-light);">2,460</div>
+        <div style="font-size:12px;color:var(--muted);">שורות קוד</div>
+      </div>
+      <div style="flex:1;">
+        <div class="mode-row" style="height:100%;">
+          <div class="mode-card active-mode">
+            <div class="mode-num">1</div>
+            <h3>מצא אזור</h3>
+            <p>תקציב + מטרה → רשימת שכונות מדורגת לפי ציון כדאיות</p>
+          </div>
+          <div class="mode-card">
+            <div class="mode-num">2</div>
+            <h3>בדוק נכס</h3>
+            <p>כתובת + מחיר → שווי הוגן ממודל XGBoost + עסקאות דומות + מפת Folium + POI</p>
+          </div>
+          <div class="mode-card">
+            <div class="mode-num">3</div>
+            <h3>עיין בנכסים</h3>
+            <p>גרידה מ-Yad2.co.il + Facebook Marketplace + בדיקת מחיר ML</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="three-col au4">
+      <div class="card" style="padding:14px;">
+        <h3>🗺️ מפות Folium</h3>
+        <p>מפה אינטראקטיבית לכל נכס עם לייר POI (בתי ספר, תחנות, פארקים). Toggle per category.</p>
+      </div>
+      <div class="card" style="padding:14px;">
+        <h3>🎨 Design System</h3>
+        <p>OKLCH tokens, Noto Serif Hebrew + Rubik, RTL native, Streamlit custom CSS injection.</p>
+      </div>
+      <div class="card" style="padding:14px;">
+        <h3>📍 Geocoding</h3>
+        <p>המרת כתובת ל-lat/lon + המרת ITM←→WGS84 לנכסים עם קואורדינטות ממינהל.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 10 — Tool 1: Find Area
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s10">
+  <div class="bg-grid"></div>
+  <div class="two-col" style="width:100%;align-items:start;">
+    <div class="content-wrap">
+      <div class="section-label au">כלי 1</div>
+      <h2 class="au2">מצא אזור להשקעה</h2>
+      <div class="divider au2"></div>
+      <div class="au3">
+        <p>המשתמש מזין <strong>תקציב מקסימלי</strong> ו<strong>מטרת השקעה</strong> (תשואה שכירות / עליית ערך). המערכת מחזירה רשימת ערים/שכונות מדורגת לפי ציון כדאיות.</p>
+      </div>
+      <div class="card au4" style="margin-top:12px;">
+        <h3>נוסחת ציון כדאיות</h3>
+        <br/>
+        <div class="code-block" style="font-size:clamp(9px,.9vw,11px);">
+          score = (<br/>
+          &nbsp;&nbsp;0.4 × price_ratio +<br/>
+          &nbsp;&nbsp;0.3 × socio_norm +<br/>
+          &nbsp;&nbsp;0.2 × poi_density +<br/>
+          &nbsp;&nbsp;0.1 × trend_score<br/>
+          ) × 100
+        </div>
+      </div>
+      <div class="card au5">
+        <h3>פיצ׳רים</h3>
+        <br/>
+        <ul>
+          <li>חציון מחיר/מ"ר לפי עיר</li>
+          <li>מדד CBS (חברתי-כלכלי)</li>
+          <li>צפיפות POI (תחבורה, בתי ספר)</li>
+          <li>טרנד מחירים שנתי</li>
+        </ul>
+      </div>
+    </div>
+    <div class="au3" style="width:100%;">
+      <div class="chart-wrap" style="height:clamp(200px,35vh,320px);">
+        <canvas id="areaChart"></canvas>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <span class="badge good">ת"א — 89 נק׳</span>
+        <span class="badge good">פ"ת — 82 נק׳</span>
+        <span class="badge fair">נתניה — 74 נק׳</span>
+        <span class="badge fair">חיפה — 71 נק׳</span>
+        <span class="badge">באר שבע — 63 נק׳</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 11 — Tool 2: Check Property
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s11">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">כלי 2</div>
+    <h2 class="au2">בדוק נכס ספציפי</h2>
+    <div class="divider au2"></div>
+    <div class="three-col au3">
+      <div class="card">
+        <span class="card-icon">📝</span>
+        <h3>קלט</h3>
+        <ul>
+          <li>כתובת הנכס</li>
+          <li>מחיר מבוקש</li>
+          <li>מ"ר, חדרים</li>
+          <li>שנת בנייה</li>
+        </ul>
+      </div>
+      <div class="card active-mode" style="border-color:var(--brand);">
+        <span class="card-icon">🤖</span>
+        <h3>עיבוד ML</h3>
+        <ul>
+          <li>Geocode כתובת → lat/lon</li>
+          <li>שליפת socio_index לעיר</li>
+          <li>הרצת model.pkl</li>
+          <li>חישוב <strong>fair_value</strong></li>
+          <li>δ = price − fair_value</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="card-icon">📊</span>
+        <h3>פלט</h3>
+        <ul>
+          <li>שווי הוגן ± RMSE</li>
+          <li>3–10 עסקאות דומות</li>
+          <li>מפת Folium + POI layers</li>
+          <li>ציון: זול / הוגן / יקר</li>
+        </ul>
+      </div>
+    </div>
+    <div class="au4" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;">
+      <div style="display:flex;gap:28px;align-items:center;justify-content:center;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">מחיר מבוקש</div>
+          <div style="font-size:clamp(18px,2.5vw,30px);font-weight:700;color:var(--bad);">₪2,100,000</div>
+        </div>
+        <div style="font-size:24px;color:var(--muted);">VS</div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">שווי הוגן XGBoost</div>
+          <div style="font-size:clamp(18px,2.5vw,30px);font-weight:700;color:var(--good);">₪1,870,000</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">סטייה</div>
+          <div style="font-size:clamp(16px,2.2vw,26px);font-weight:700;color:var(--bad);">+₪230,000 (יקר ב-12%)</div>
+        </div>
+        <span class="badge" style="background:rgba(224,96,96,.15);color:var(--bad);border-color:rgba(224,96,96,.3);font-size:13px;">⚠️ יקר מהשוק</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 12 — Tool 3: Browse Listings
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s12">
+  <div class="bg-grid"></div>
+  <div class="two-col" style="width:100%;align-items:start;">
+    <div class="content-wrap">
+      <div class="section-label au">כלי 3</div>
+      <h2 class="au2">עיין בנכסים</h2>
+      <div class="divider au2"></div>
+      <p class="au3">גרידה בזמן-אמת מ-<strong>Yad2.co.il</strong> ו-<strong>Facebook Marketplace</strong>. לכל מודעה — בדיקת מחיר מול מודל ML.</p>
+      <div class="card au4" style="margin-top:12px;">
+        <h3>תהליך הגרידה</h3>
+        <br/>
+        <div class="pipeline" style="font-size:clamp(9px,1vw,12px);">
+          <div class="pipe-step">
+            <span class="pipe-num">קלט</span>
+            <div class="pipe-title">עיר + מסנן</div>
+          </div>
+          <div class="pipe-step">
+            <span class="pipe-num">Scrape</span>
+            <div class="pipe-title">curl_cffi</div>
+          </div>
+          <div class="pipe-step">
+            <span class="pipe-num">Parse</span>
+            <div class="pipe-title">BeautifulSoup</div>
+          </div>
+          <div class="pipe-step">
+            <span class="pipe-num">ML Check</span>
+            <div class="pipe-title">model.pkl</div>
+          </div>
+        </div>
+      </div>
+      <div class="card au5">
+        <h3>מה מוצג לכל נכס?</h3>
+        <br/>
+        <ul>
+          <li>מחיר מבוקש מהמודעה</li>
+          <li>שווי הוגן מהמודל</li>
+          <li>סיווג: <span style="color:var(--good);">זול</span> / <span style="color:var(--fair);">הוגן</span> / <span style="color:var(--bad);">יקר</span></li>
+          <li>קישור למודעה המקורית</li>
+        </ul>
+      </div>
+    </div>
+    <div class="au3" style="width:100%;">
+      <div class="card" style="margin-bottom:10px;border-color:var(--good);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h3>ת"א, 3 חד׳, 75 מ"ר</h3>
+            <p style="font-size:11px;margin-top:4px;">שנת בנייה: 1998</p>
+          </div>
+          <span class="badge good">זול ב-8%</span>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;">
+          <div><div style="font-size:10px;color:var(--muted);">מחיר מבוקש</div><div style="font-weight:700;color:var(--text);">₪2,200,000</div></div>
+          <div><div style="font-size:10px;color:var(--muted);">שווי הוגן</div><div style="font-weight:700;color:var(--good);">₪2,390,000</div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:10px;border-color:var(--fair);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h3>חיפה, 4 חד׳, 90 מ"ר</h3>
+            <p style="font-size:11px;margin-top:4px;">שנת בנייה: 2005</p>
+          </div>
+          <span class="badge fair">הוגן</span>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;">
+          <div><div style="font-size:10px;color:var(--muted);">מחיר מבוקש</div><div style="font-weight:700;color:var(--text);">₪1,650,000</div></div>
+          <div><div style="font-size:10px;color:var(--muted);">שווי הוגן</div><div style="font-weight:700;color:var(--fair);">₪1,680,000</div></div>
+        </div>
+      </div>
+      <div class="card" style="border-color:var(--bad);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h3>נתניה, 2 חד׳, 55 מ"ר</h3>
+            <p style="font-size:11px;margin-top:4px;">שנת בנייה: 1985</p>
+          </div>
+          <span class="badge" style="background:rgba(224,96,96,.12);color:var(--bad);border-color:rgba(224,96,96,.3);">יקר ב-15%</span>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;">
+          <div><div style="font-size:10px;color:var(--muted);">מחיר מבוקש</div><div style="font-weight:700;color:var(--text);">₪1,380,000</div></div>
+          <div><div style="font-size:10px;color:var(--muted);">שווי הוגן</div><div style="font-weight:700;color:var(--bad);">₪1,200,000</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 13 — FastAPI + HTML Pages
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s13">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">שלב ז׳</div>
+    <h2 class="au2">HTML_PAGES — FastAPI Frontend</h2>
+    <div class="divider au2"></div>
+    <div class="au3" style="display:flex;gap:14px;width:100%;">
+      <div class="card" style="flex:0 0 auto;min-width:160px;border-color:var(--brand);">
+        <h3>main.py</h3>
+        <p style="font-size:11px;margin-top:6px;">FastAPI backend</p>
+        <br/>
+        <ul style="font-size:10px;">
+          <li>GET /</li>
+          <li>GET /check</li>
+          <li>GET /areas</li>
+          <li>GET /browse</li>
+          <li>POST /api/predict</li>
+          <li>GET /api/similar</li>
+        </ul>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+        <div class="three-col" style="gap:10px;">
+          <div class="card" style="padding:14px;">
+            <h3>landing.html</h3>
+            <p style="font-size:11px;">דף בית — Hero section, XGBoost popover, CTA לשלוש הכלים. 55 KB.</p>
+          </div>
+          <div class="card" style="padding:14px;">
+            <h3>check.html</h3>
+            <p style="font-size:11px;">בדיקת נכס — form + Leaflet map + POI layers + similar deals. 61 KB.</p>
+          </div>
+          <div class="card" style="padding:14px;">
+            <h3>areas.html</h3>
+            <p style="font-size:11px;">בועות מפה על פי Leaflet, Overpass polygons, click-to-zoom. 59 KB.</p>
+          </div>
+        </div>
+        <div class="card" style="padding:14px;">
+          <h3>browse.html &nbsp;·&nbsp; ניווט בין כלים</h3>
+          <p style="font-size:11px;">רשימת מודעות + ML check · nav bar (.tnav-link) משותף לשלוש הדפים עם data-route active detection</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="badge">RTL Hebrew UI</span>
+          <span class="badge">OKLCH Design Tokens</span>
+          <span class="badge">Leaflet.js Maps</span>
+          <span class="badge">Overpass API Boundaries</span>
+          <span class="badge">Railway Deploy</span>
+          <span class="badge">Procfile</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 14 — Design System
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s14">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">מערכת עיצוב</div>
+    <h2 class="au2">Design System — נדלניסט</h2>
+    <div class="divider au2"></div>
+    <div class="two-col au3">
+      <div>
+        <h3 style="margin-bottom:10px;">🎨 פלטת צבעים (OKLCH)</h3>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <div style="width:44px;height:44px;border-radius:8px;background:#C77261;margin:0 auto 4px;"></div>
+            <div style="font-size:9px;color:var(--muted);">Brand<br/>#C77261</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:44px;height:44px;border-radius:8px;background:#0E0B09;border:1px solid var(--border);margin:0 auto 4px;"></div>
+            <div style="font-size:9px;color:var(--muted);">BG<br/>#0E0B09</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:44px;height:44px;border-radius:8px;background:#EDE8E3;margin:0 auto 4px;"></div>
+            <div style="font-size:9px;color:#333;">Text<br/>#EDE8E3</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:44px;height:44px;border-radius:8px;background:#6ABF7B;margin:0 auto 4px;"></div>
+            <div style="font-size:9px;color:var(--muted);">Good<br/>#6ABF7B</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:44px;height:44px;border-radius:8px;background:#E8B84B;margin:0 auto 4px;"></div>
+            <div style="font-size:9px;color:var(--muted);">Fair<br/>#E8B84B</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:44px;height:44px;border-radius:8px;background:#E06060;margin:0 auto 4px;"></div>
+            <div style="font-size:9px;color:var(--muted);">Bad<br/>#E06060</div>
+          </div>
+        </div>
+        <h3 style="margin-bottom:8px;">✍️ טיפוגרפיה</h3>
+        <p style="font-family:var(--font-serif);font-size:clamp(16px,2vw,22px);color:var(--text);">Noto Serif Hebrew — כותרות</p>
+        <p style="font-family:var(--font-sans);font-size:clamp(13px,1.5vw,17px);color:var(--muted);margin-top:4px;">Rubik — גוף טקסט ותגיות</p>
+      </div>
+      <div>
+        <h3 style="margin-bottom:10px;">📐 עקרונות עיצוב</h3>
+        <div class="card" style="margin-bottom:8px;padding:12px 14px;">
+          <p><strong>RTL Native</strong> — עברית כשפת ברירת מחדל, לא תרגום.</p>
+        </div>
+        <div class="card" style="margin-bottom:8px;padding:12px 14px;">
+          <p><strong>WCAG 2.1 AA</strong> — ניגודיות 4.5:1 מינימום, skip-nav, focus rings, 44px touch targets.</p>
+        </div>
+        <div class="card" style="margin-bottom:8px;padding:12px 14px;">
+          <p><strong>8px Grid</strong> — כל spacing בכפולות של 8px.</p>
+        </div>
+        <div class="card" style="padding:12px 14px;">
+          <p><strong>Motion: 200–400ms</strong> cubic-bezier easing — תכלית, לא קישוט.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 15 — Architecture Overview
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s15">
+  <div class="bg-grid"></div>
+  <div class="content-wrap">
+    <div class="section-label au">ארכיטקטורה</div>
+    <h2 class="au2">ציר הנתונים — מקצה לקצה</h2>
+    <div class="divider au2"></div>
+    <div class="au3" style="width:100%;">
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="pipe-step" style="border-radius:10px;flex:1;padding:12px;border:1px solid var(--border);">
+            <span class="pipe-num">DATA</span>
+            <div class="pipe-title">ALL_DATA.xlsx → DATA.csv</div>
+            <div class="pipe-sub">רשות מיסים + CBS + OSM</div>
+          </div>
+          <div style="color:var(--brand);font-size:20px;flex:0 0 auto;">→</div>
+          <div class="pipe-step" style="border-radius:10px;flex:1;padding:12px;border:1px solid var(--border);">
+            <span class="pipe-num">CLEAN</span>
+            <div class="pipe-title">LAMAS_EDA_2M Pipeline</div>
+            <div class="pipe-sub">PART1 → PART2 → PART3</div>
+          </div>
+          <div style="color:var(--brand);font-size:20px;flex:0 0 auto;">→</div>
+          <div class="pipe-step" style="border-radius:10px;flex:1;padding:12px;border:1px solid var(--border);">
+            <span class="pipe-num">ML</span>
+            <div class="pipe-title">train_model.py → model.pkl</div>
+            <div class="pipe-sub">XGBoost R²=74%</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="pipe-step" style="border-radius:10px;flex:1;padding:12px;border:1px solid var(--border);border-color:var(--brand);">
+            <span class="pipe-num">STREAMLIT</span>
+            <div class="pipe-title">app_simple.py</div>
+            <div class="pipe-sub">פרוטוטייפ · 2,460 שורות</div>
+          </div>
+          <div style="color:var(--brand);font-size:20px;flex:0 0 auto;">+</div>
+          <div class="pipe-step" style="border-radius:10px;flex:1;padding:12px;border:1px solid var(--border);border-color:var(--brand);">
+            <span class="pipe-num">FASTAPI</span>
+            <div class="pipe-title">HTML_PAGES/main.py</div>
+            <div class="pipe-sub">4 דפים + REST API</div>
+          </div>
+          <div style="color:var(--brand);font-size:20px;flex:0 0 auto;">→</div>
+          <div class="pipe-step" style="border-radius:10px;flex:1;padding:12px;border:1px solid var(--border);">
+            <span class="pipe-num">DEPLOY</span>
+            <div class="pipe-title">Railway</div>
+            <div class="pipe-sub">Procfile · uvicorn</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="three-col au4">
+      <div class="stat-card">
+        <div class="stat-num" style="font-size:clamp(14px,2vw,24px);">nadlan.gov.il</div>
+        <div class="stat-label">מקור נתונים</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="font-size:clamp(14px,2vw,24px);">Yad2 + FB</div>
+        <div class="stat-label">גרידה חיה</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="font-size:clamp(14px,2vw,24px);">Railway</div>
+        <div class="stat-label">פריסה בענן</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SLIDE 16 — Results & Summary
+══════════════════════════════════════════════════ -->
+<div class="slide" id="s16">
+  <div class="bg-grid"></div>
+  <div class="deco-circle" style="width:600px;height:600px;background:var(--brand);bottom:-250px;left:-250px;"></div>
+  <div class="content-wrap" style="align-items:center;text-align:center;">
+    <div class="section-label au">סיכום</div>
+    <h2 class="au2" style="text-align:center;">מה השגנו?</h2>
+    <div class="divider au2" style="margin:10px auto;"></div>
+    <div class="stat-grid au3" style="grid-template-columns:repeat(4,1fr);margin-bottom:8px;">
+      <div class="stat-card" style="border-color:var(--good);">
+        <div class="stat-num" style="color:var(--good);">6,609</div>
+        <div class="stat-label">עסקאות נדל"ן אמיתיות</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--good);">
+        <div class="stat-num" style="color:var(--good);">74%</div>
+        <div class="stat-label">דיוק R² של המודל</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">4</div>
+        <div class="stat-label">דפי HTML בפרודקשן</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">3</div>
+        <div class="stat-label">כלי ניתוח</div>
+      </div>
+    </div>
+    <div class="three-col au4" style="gap:10px;">
+      <div class="card" style="text-align:right;">
+        <span class="card-icon" style="font-size:22px;">📂</span>
+        <h3>Data Pipeline</h3>
+        <p>LAMAS_EDA_2M: 3 שלבים, ניקוי מלא, 340 כפילויות הוסרו, outliers סוננו.</p>
+      </div>
+      <div class="card" style="text-align:right;">
+        <span class="card-icon" style="font-size:22px;">🤖</span>
+        <h3>ML Model</h3>
+        <p>XGBoost על 6,609 עסקאות, 5 פיצ׳רים, model.pkl מוכן לפרודקשן.</p>
+      </div>
+      <div class="card" style="text-align:right;">
+        <span class="card-icon" style="font-size:22px;">🌐</span>
+        <h3>Full-Stack App</h3>
+        <p>FastAPI + HTML5 RTL, Leaflet maps, Streamlit prototype, Railway deployment.</p>
+      </div>
+    </div>
+    <div class="au5" style="margin-top:12px;padding:14px 20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;text-align:center;">
+      <p style="color:var(--text);font-size:clamp(13px,1.6vw,18px);">
+        נדלניסט — <strong>כלי ML לאיתור הזדמנויות השקעה</strong> המבוסס על נתוני עסקאות אמיתיות,<br/>
+        ומאפשר קבלת החלטות מושכלת בשוק הנדל"ן הישראלי.
+      </p>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.deck -->
+
+<!-- ── Nav ── -->
+<div class="nav">
+  <button class="nav-btn" onclick="prev()">→</button>
+  <span class="counter"><span id="cur">1</span> / <span id="tot">16</span></span>
+  <button class="nav-btn" onclick="next()">←</button>
+</div>
+
+<!-- ── Charts ── -->
+<script>
+Chart.defaults.color = 'rgba(28,20,16,.55)';
+Chart.defaults.font.family = "'Rubik', sans-serif";
+
+/* Slide 5 — Price by city */
+new Chart(document.getElementById('priceChart'), {
+  type: 'bar',
+  data: {
+    labels: ['ת"א', 'הרצליה', 'פ"ת', 'נתניה', 'חיפה', 'ב"ש'],
+    datasets: [{
+      label: 'מחיר חציוני (₪ מיליון)',
+      data: [3.8, 3.1, 2.4, 1.9, 1.5, 1.1],
+      backgroundColor: ['#C77261','#C77261','#D98B7D','#D98B7D','rgba(199,114,97,.5)','rgba(199,114,97,.35)'],
+      borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, title:{display:true,text:'מחיר חציוני לפי עיר',color:'rgba(28,20,16,.7)',font:{size:12}} },
+    scales:{
+      x:{grid:{color:'rgba(28,20,16,.07)'},ticks:{color:'rgba(28,20,16,.55)'}},
+      y:{grid:{color:'rgba(28,20,16,.07)'},ticks:{color:'rgba(28,20,16,.55)',callback:v=>v+'M₪'}}
+    }
+  }
+});
+
+/* Slide 5 — Rooms distribution */
+new Chart(document.getElementById('roomsChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['2 חד׳','3 חד׳','4 חד׳','5+ חד׳'],
+    datasets:[{
+      data:[18,42,31,9],
+      backgroundColor:['rgba(199,114,97,.3)','#C77261','#D98B7D','rgba(199,114,97,.6)'],
+      borderColor:'rgba(14,11,9,.5)',
+      borderWidth:2,
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, cutout:'65%',
+    plugins:{
+      legend:{position:'right',labels:{font:{size:11},padding:8}},
+      title:{display:true,text:'התפלגות לפי מספר חדרים',color:'rgba(28,20,16,.7)',font:{size:11}}
+    }
+  }
+});
+
+/* Slide 7 — Feature importance */
+new Chart(document.getElementById('featImportance'), {
+  type: 'bar',
+  data: {
+    labels: ['area_m2','city_code','socio_index','year_built','rooms'],
+    datasets:[{
+      label:'חשיבות פיצ׳ר',
+      data:[0.42,0.28,0.15,0.09,0.06],
+      backgroundColor:['#C77261','#D98B7D','rgba(199,114,97,.7)','rgba(199,114,97,.5)','rgba(199,114,97,.35)'],
+      borderRadius:5,
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},title:{display:true,text:'Feature Importance — XGBoost',color:'rgba(28,20,16,.7)',font:{size:12}}},
+    scales:{
+      x:{grid:{color:'rgba(28,20,16,.07)'},ticks:{color:'rgba(28,20,16,.45)',callback:v=>(v*100).toFixed(0)+'%'}},
+      y:{grid:{color:'rgba(28,20,16,.07)'},ticks:{color:'rgba(28,20,16,.7)',font:{family:'monospace',size:11}}}
+    }
+  }
+});
+
+/* Slide 10 — Area viability scores */
+new Chart(document.getElementById('areaChart'), {
+  type: 'radar',
+  data: {
+    labels: ['מחיר','תחבורה','חינוך','בטיחות','תשואה','ביקוש'],
+    datasets:[
+      {
+        label:'תל אביב',
+        data:[55,90,88,80,70,95],
+        borderColor:'#C77261',
+        backgroundColor:'rgba(199,114,97,.15)',
+        borderWidth:2,
+        pointBackgroundColor:'#C77261',
+      },
+      {
+        label:'חיפה',
+        data:[78,72,74,75,80,65],
+        borderColor:'rgba(106,191,123,.8)',
+        backgroundColor:'rgba(106,191,123,.1)',
+        borderWidth:2,
+        pointBackgroundColor:'rgba(106,191,123,.8)',
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'bottom',labels:{font:{size:11},color:'rgba(28,20,16,.7)',boxWidth:12}},
+      title:{display:true,text:'פרופיל השקעה — ת"א לעומת חיפה',color:'rgba(28,20,16,.7)',font:{size:12}}
+    },
+    scales:{
+      r:{
+        grid:{color:'rgba(28,20,16,.09)'},
+        angleLines:{color:'rgba(28,20,16,.09)'},
+        pointLabels:{color:'rgba(28,20,16,.7)',font:{size:11}},
+        ticks:{display:false},
+        min:0,max:100
+      }
+    }
+  }
+});
+</script>
+
+<!-- ── Navigation JS ── -->
+<script>
+let cur = 1;
+const slides = document.querySelectorAll('.slide');
+const total  = slides.length;
+document.getElementById('tot').textContent = total;
+
+function show(n) {
+  if (n < 1) n = 1;
+  if (n > total) n = total;
+  cur = n;
+  slides.forEach((s,i) => s.classList.toggle('active', i === n-1));
+  document.getElementById('cur').textContent = n;
+  document.getElementById('progress').style.width = (n/total*100)+'%';
+}
+function next() { show(cur+1); }
+function prev() { show(cur-1); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft'  || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); prev(); }
+});
+
+// swipe
+let tx = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+document.addEventListener('touchend',   e => {
+  const dx = tx - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 40) dx > 0 ? next() : prev();
+});
+
+show(1);
+</script>
+</body>
+</html>
