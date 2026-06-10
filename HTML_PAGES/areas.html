@@ -183,27 +183,6 @@
     .goal-btn.active .goal-title { color: var(--brand-700); }
     .goal-btn.active .goal-sub   { color: var(--brand-500); }
 
-    /* Sort row */
-    .sort-row {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
-    .sort-label {
-      font-size: 0.8rem; font-weight: 600; color: var(--ink-500);
-      white-space: nowrap; letter-spacing: 0.01em;
-    }
-    .sort-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
-    .sort-tab {
-      padding: 5px 13px;
-      border: 1.5px solid var(--ink-200); border-radius: 18px;
-      font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
-      color: var(--ink-500); background: var(--bg); cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
-    }
-    .sort-tab:hover { color: var(--ink-700); border-color: var(--ink-400); }
-    .sort-tab.active { background: var(--brand-700); color: #fff; border-color: var(--brand-700); }
-
     /* District pills */
     .district-row {
       display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px;
@@ -261,31 +240,98 @@
     }
     .map-title { font-weight: 600; font-size: 0.875rem; color: var(--ink-700); flex: 1; }
     .map-legend {
-      display: flex; align-items: center; gap: 12px;
+      display: flex; align-items: center; gap: 14px;
       font-size: 0.73rem; color: var(--ink-500);
     }
-    .legend-item { display: flex; align-items: center; gap: 4px; }
-    .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .dot-high { background: #27ae60; }
-    .dot-mid  { background: #e8a020; }
-    .dot-low  { background: #d94040; }
-    .map-toggle-btn {
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-swatch {
+      width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+    }
+    .swatch-top { background: rgba(39,174,96,0.35); border: 2px solid #156a3d; }
+    .swatch-bot { background: rgba(217,64,64,0.25); border: 2px solid #7a1e1e; }
+    .legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 2px solid; }
+    .dot-top { background: rgba(39,174,96,0.7); border-color: #1a7a45; }
+    .dot-bot { background: rgba(208,64,64,0.7); border-color: #b02020; }
+    .map-loading {
+      font-size: 0.72rem; color: var(--ink-400);
+      display: none; align-items: center; gap: 5px;
+    }
+    .map-loading.visible { display: flex; }
+    .map-spinner {
+      width: 11px; height: 11px; border-radius: 50%;
+      border: 2px solid var(--ink-200); border-top-color: var(--brand-500);
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .map-toggle-btn,
+    .boundary-toggle-btn {
       padding: 4px 10px; border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
       font-size: 0.74rem; color: var(--ink-500); background: none; cursor: pointer;
       white-space: nowrap; font-family: var(--font-body);
-      transition: color 0.15s, border-color 0.15s;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
-    .map-toggle-btn:hover { color: var(--ink-700); border-color: var(--ink-400); }
+    .map-toggle-btn:hover,
+    .boundary-toggle-btn:hover { color: var(--ink-700); border-color: var(--ink-400); }
+    .boundary-toggle-btn.boundary-active {
+      border-color: var(--brand-500); color: var(--brand-700); background: var(--brand-100);
+    }
     .map-body {
-      max-height: 460px; overflow: hidden;
+      max-height: 500px; overflow: hidden;
       transition: max-height 0.38s var(--ease-out-quint), opacity 0.3s;
       opacity: 1;
     }
     .map-body.collapsed { max-height: 0 !important; opacity: 0; }
-    #investMap { height: 420px; }
+    #investMap { height: clamp(240px, 42vh, 400px); }
     /* Leaflet popup RTL fix */
     .leaflet-popup-content { direction: rtl; text-align: right; font-family: var(--font-body); }
     .leaflet-popup-content hr { margin: 6px 0; border: none; border-top: 1px solid #eee; }
+    /* Permanent city labels on map bubbles (divIcon approach — reliable in RTL) */
+    .city-label-icon {
+      background: none !important;
+      border: none !important;
+      overflow: visible !important;
+    }
+    .clbl {
+      display: inline-flex; align-items: center; gap: 4px; direction: ltr;
+      background: rgba(255,255,255,0.93);
+      border: 1px solid rgba(0,0,0,0.09);
+      box-shadow: 0 1px 5px rgba(0,0,0,0.13);
+      border-radius: 20px;
+      padding: 2px 6px 2px 4px;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .clbl-name { font-size: 0.59rem; font-weight: 600; color: #1a1a1a; font-family: 'Rubik', sans-serif; }
+    .clbl-score {
+      font-size: 0.57rem; font-weight: 700; padding: 0 3px;
+      border-radius: 3px; line-height: 1.6; font-family: 'Rubik', sans-serif;
+    }
+    .clbl-score.score-top { color: #0a5228; background: #c8eeda; }
+    .clbl-score.score-bot { color: #7a0e0e; background: #fbd5d5; }
+    /* Metric label hover tooltip */
+    .metric-lbl[data-tip] {
+      cursor: help;
+      text-decoration: underline dotted;
+      text-underline-offset: 2px;
+      text-decoration-color: var(--ink-200);
+    }
+    .metric-tooltip {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      background: var(--ink-900);
+      color: #fff;
+      font-size: 0.71rem;
+      line-height: 1.5;
+      padding: 6px 10px;
+      border-radius: var(--r-sm);
+      max-width: 220px;
+      direction: rtl;
+      text-align: right;
+      pointer-events: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+      font-family: var(--font-body);
+    }
 
     /* ── States ──────────────────────────────────────────────────────────────── */
     .skeleton-wrap { padding: 24px 0; }
@@ -325,7 +371,8 @@
       padding: 13px 20px;
       border-bottom: 1px solid var(--ink-100);
       background: var(--bg);
-      transition: background 0.1s;
+      cursor: pointer;
+      transition: background 0.1s, outline 0.1s;
     }
     .area-row:last-child { border-bottom: none; }
     .area-row:hover { background: var(--brand-100); }
@@ -491,7 +538,7 @@
           <div class="budget-wrap">
             <button class="budget-btn" id="budgetDown" type="button">−</button>
             <input id="budgetInput" class="budget-input" type="number"
-                   value="2000000" step="250000" min="0" placeholder="ללא הגבלה" dir="ltr" />
+                   value="2000000" step="100000" min="0" placeholder="ללא הגבלה" dir="ltr" />
             <button class="budget-btn" id="budgetUp" type="button">+</button>
           </div>
         </div>
@@ -518,12 +565,6 @@
             </button>
           </div>
         </div>
-      </div>
-
-      <!-- Sort row -->
-      <div class="sort-row">
-        <span class="sort-label">מיין לפי:</span>
-        <div class="sort-tabs" id="sortTabs"></div>
       </div>
 
       <!-- District pills -->
@@ -578,12 +619,15 @@
       <!-- Heatmap -->
       <div class="map-section">
         <div class="map-header">
-          <span class="map-title">מפת השקעות</span>
+          <span class="map-title">מפת השקעות — 10 מובילים ו-5 נמוכים</span>
           <div class="map-legend">
-            <div class="legend-item"><span class="legend-dot dot-high"></span> ציון גבוה</div>
-            <div class="legend-item"><span class="legend-dot dot-mid"></span>  ציון בינוני</div>
-            <div class="legend-item"><span class="legend-dot dot-low"></span>  ציון נמוך</div>
+            <div class="legend-item"><span class="legend-dot dot-top"></span>10 מובילים</div>
+            <div class="legend-item"><span class="legend-dot dot-bot"></span>5 נמוכים</div>
           </div>
+          <div class="map-loading" id="mapLoading">
+            <div class="map-spinner"></div><span>טוען גבולות...</span>
+          </div>
+          <button class="boundary-toggle-btn" id="boundaryToggleBtn" type="button">הצג גבולות</button>
           <button class="map-toggle-btn" id="mapToggleBtn" type="button">הסתר מפה ▲</button>
         </div>
         <div class="map-body" id="mapBody">
@@ -690,27 +734,32 @@ const CITY_COORDS = {
   'אילת':                  [29.5581, 34.9482],
 };
 
-/* ── Sort definitions ─────────────────────────────────────────────────────── */
-const SORTS = [
-  { key: 'relevance_score', asc: false, label: 'הכי מתאים לי'  },
-  { key: 'avg_viability',   asc: false, label: 'כדאיות גבוהה'  },
-  { key: 'avg_price',       asc: true,  label: 'מחיר נמוך'     },
-  { key: 'trend_pct_yr',    asc: false, label: 'מגמת עלייה'    },
-  { key: 'deal_count',      asc: false, label: 'נפח עסקאות'    },
-];
-
 /* ── State ────────────────────────────────────────────────────────────────── */
-let _allAreas = [];
-let _areas    = [];
-let _sortIdx  = 0;
-let _district = 'הכל';
-let _budget   = 2_000_000;
-let _goal     = 'rental';
+let _allAreas   = [];
+let _areas      = [];
+let _district   = 'הכל';
+let _budget     = 2_000_000;
+let _goal       = 'rental';
 let _mapVisible = true;
 
 /* ── Map state ────────────────────────────────────────────────────────────── */
-let _map     = null;
-let _markers = null;
+let _map             = null;
+let _bubbleLayer     = null;
+let _polygonLayer    = null;
+let _showBoundaries  = false;
+const _boundaryCache = new Map();   // city → rings[] (from Overpass), null = no data
+
+/* Hebrew city names as they appear in OpenStreetMap */
+const OSM_NAME = {
+  'תל אביב יפו':        'תל אביב-יפו',
+  'תל אביב':            'תל אביב-יפו',
+  'מודיעין מכבים רעות': 'מודיעין-מכבים-רעות',
+  'יהוד מונוסון':       'יהוד-מונוסון',
+  'פרדס חנה כרכור':     'פרדס חנה-כרכור',
+  'קריית גת':           'קרית גת',
+  'מעלות תרשיחא':       'מעלות-תרשיחא',
+  'יוקנעם עילית':       'יקנעם עילית',
+};
 
 /* ── DOM refs ─────────────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
@@ -738,13 +787,6 @@ function computeRelevanceScore(area, goal) {
     : 0.55 * trendScore + 0.30 * viab  + 0.15 * countScore;
 }
 
-/* ── Map color from score ─────────────────────────────────────────────────── */
-function scoreToColor(score) {
-  if (score >= 68) return { stroke: '#156a3d', fill: '#27ae60' };
-  if (score >= 54) return { stroke: '#217a45', fill: '#52c882' };
-  if (score >= 40) return { stroke: '#935e00', fill: '#e8a020' };
-  return                  { stroke: '#7a1e1e', fill: '#d94040' };
-}
 
 /* ── Utility ──────────────────────────────────────────────────────────────── */
 function viabCls(s) {
@@ -796,20 +838,6 @@ function showData() {
   statsStrip.style.display   = '';
 }
 
-/* ── Sort tabs ────────────────────────────────────────────────────────────── */
-function buildSortTabs() {
-  $('sortTabs').innerHTML = SORTS.map((s, i) =>
-    `<button class="sort-tab${i === _sortIdx ? ' active' : ''}" data-idx="${i}">${esc(s.label)}</button>`
-  ).join('');
-}
-$('sortTabs').addEventListener('click', e => {
-  const btn = e.target.closest('.sort-tab');
-  if (!btn) return;
-  _sortIdx = parseInt(btn.dataset.idx, 10);
-  buildSortTabs();
-  applyFilterSort(false);
-});
-
 /* ── District pills ───────────────────────────────────────────────────────── */
 const DISTRICT_ORDER = [
   'הכל', 'מחוז תל אביב', 'מחוז המרכז', 'מחוז ירושלים',
@@ -839,12 +867,12 @@ budgetInput.addEventListener('change', () => {
   applyFilterSort(false);
 });
 $('budgetDown').addEventListener('click', () => {
-  _budget = Math.max(0, (_budget || 0) - 250_000);
+  _budget = Math.max(0, (_budget || 0) - 100_000);
   budgetInput.value = _budget || '';
   applyFilterSort(false);
 });
 $('budgetUp').addEventListener('click', () => {
-  _budget = (_budget || 0) + 250_000;
+  _budget = (_budget || 0) + 100_000;
   budgetInput.value = _budget;
   applyFilterSort(false);
 });
@@ -868,61 +896,185 @@ $('mapToggleBtn').addEventListener('click', () => {
   $('mapBody').classList.toggle('collapsed', !_mapVisible);
   $('mapToggleBtn').textContent = _mapVisible ? 'הסתר מפה ▲' : 'הצג מפה ▼';
   if (_mapVisible && _map) {
-    setTimeout(() => _map.invalidateSize(), 380);
+    setTimeout(() => { _map.invalidateSize(); }, 400);
   }
+});
+
+/* ── Boundary toggle ──────────────────────────────────────────────────────── */
+$('boundaryToggleBtn').addEventListener('click', () => {
+  _showBoundaries = !_showBoundaries;
+  const btn = $('boundaryToggleBtn');
+  btn.textContent = _showBoundaries ? 'הסתר גבולות' : 'הצג גבולות';
+  btn.classList.toggle('boundary-active', _showBoundaries);
+  updateMapMarkers(_areas);
 });
 
 /* ── Init Leaflet map ─────────────────────────────────────────────────────── */
 function initMap() {
   _map = L.map('investMap', {
-    preferCanvas: true,
-    zoomControl: true,
+    preferCanvas:       true,
+    zoomControl:        true,
     attributionControl: true,
+    scrollWheelZoom:    false,
+    tap:                false,
   }).setView([31.8, 34.9], 8);
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
     maxZoom: 18,
   }).addTo(_map);
-
-  _markers = L.layerGroup().addTo(_map);
 }
 
-/* ── Update map markers ───────────────────────────────────────────────────── */
-function updateMapMarkers(areas) {
-  if (!_map || !_markers) return;
-  _markers.clearLayers();
+/* ── Overpass: parse relation members into Leaflet ring arrays ────────────── */
+function parseRelation(el) {
+  if (!el.members) return [];
+  return el.members
+    .filter(m => m.role === 'outer' && m.geometry?.length)
+    .map(m => m.geometry.map(n => [n.lat, n.lon]));
+}
 
-  areas.forEach(area => {
+/* ── Fetch boundaries in batch from Overpass API ─────────────────────────── */
+async function fetchBoundaries(cities) {
+  const needed = cities.filter(c => !_boundaryCache.has(c.city));
+  if (!needed.length) return;
+
+  const lines = needed.map(c => {
+    const name = OSM_NAME[c.city] || c.city;
+    // admin_level 8 = Israeli municipality; fall back to broader search via union
+    return (
+      `relation["boundary"="administrative"]["admin_level"="8"]["name:he"="${name}"];` +
+      `relation["boundary"="administrative"]["admin_level"="9"]["name:he"="${name}"];`
+    );
+  }).join('\n');
+
+  const query = `[out:json][timeout:50];\n(\n${lines}\n);\nout geom;`;
+
+  try {
+    const res  = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body:   'data=' + encodeURIComponent(query),
+    });
+    const data = await res.json();
+
+    (data.elements || []).forEach(el => {
+      if (el.type !== 'relation') return;
+      const heName = el.tags?.['name:he'] || el.tags?.name || '';
+      const city   = needed.find(c => {
+        const osmName = OSM_NAME[c.city] || c.city;
+        return osmName === heName || c.city === heName;
+      });
+      if (!city) return;
+      const rings = parseRelation(el);
+      _boundaryCache.set(city.city, rings.length ? rings : null);
+    });
+  } catch (_) { /* network error — fallback to circles */ }
+
+  // Mark anything still unfetched as null
+  needed.forEach(c => { if (!_boundaryCache.has(c.city)) _boundaryCache.set(c.city, null); });
+}
+
+/* ── Popup content ────────────────────────────────────────────────────────── */
+function buildPopup(area, isTop) {
+  const score = area.relevance_score ?? 0;
+  const trend = fmtTrend(area.trend_pct_yr);
+  const clr   = isTop ? '#156a3d' : '#7a1e1e';
+  return (
+    `<strong style="font-size:0.92rem;color:${clr}">${esc(area.city)}</strong><br>` +
+    `<span style="font-size:0.77rem;color:#666">${esc(area.district || '')}</span>` +
+    `<hr>` +
+    `ציון: <strong>${Math.round(score)}</strong><br>` +
+    `מחיר ממוצע: ${fmtPrice(area.avg_price)}<br>` +
+    `מגמה: ${esc(trend.text)}<br>` +
+    `עסקאות: ${area.deal_count || 0}`
+  );
+}
+
+/* ── Render bubbles (always visible) ─────────────────────────────────────── */
+function renderBubbles(topCities, bottomCities) {
+  if (_bubbleLayer) { _map.removeLayer(_bubbleLayer); _bubbleLayer = null; }
+  _bubbleLayer = L.layerGroup().addTo(_map);
+
+  const draw = (area, isTop, rank) => {
     const coords = CITY_COORDS[area.city];
     if (!coords) return;
 
-    const score  = area.relevance_score ?? computeRelevanceScore(area, _goal);
-    const colors = scoreToColor(score);
-    const radius = clamp(Math.sqrt(area.deal_count || 1) * 1.9, 7, 22);
-    const trend  = fmtTrend(area.trend_pct_yr);
+    const color     = isTop ? '#1a7a45' : '#b02020';
+    const fillColor = isTop ? '#27ae60' : '#d94040';
+    const radius    = isTop ? Math.max(5, 10 - rank * 0.45) : 5.5;
+    const score     = Math.round(area.relevance_score ?? area.avg_viability ?? 0);
+    const scoreClass = isTop ? 'score-top' : 'score-bot';
 
     const marker = L.circleMarker(coords, {
-      radius,
-      color:       colors.stroke,
-      fillColor:   colors.fill,
-      fillOpacity: 0.80,
-      weight:      1.5,
+      radius, color, weight: 2, fillColor, fillOpacity: 0.72,
     });
+    marker.bindPopup(buildPopup(area, isTop), { maxWidth: 210 });
+    marker.addTo(_bubbleLayer);
 
-    marker.bindPopup(
-      `<strong style="font-size:0.93rem">${esc(area.city)}</strong><br>` +
-      `<span style="font-size:0.78rem;color:#666">${esc(area.district || '')}</span>` +
-      `<hr>` +
-      `ציון: <strong>${Math.round(score)}</strong><br>` +
-      `מחיר ממוצע: ${fmtPrice(area.avg_price)}<br>` +
-      `מגמה: <span style="color:${trend.cls === 'trend-up' ? '#27ae60' : trend.cls === 'trend-down' ? '#d94040' : '#888'}">${trend.text}</span><br>` +
-      `עסקאות: ${area.deal_count || 0}`,
-      { maxWidth: 200 }
-    );
+    // Label: divIcon positioned via absolute CSS above the bubble center.
+    // iconAnchor [0,0] → icon top-left at the coord pixel.
+    // Child "bottom: r+3px" → label bottom sits (r+3)px above coord = just above bubble top.
+    const r = Math.round(radius);
+    L.marker(coords, {
+      icon: L.divIcon({
+        html:       `<div class="clbl" style="position:absolute;bottom:${r + 3}px;left:0;transform:translateX(-50%)"><span class="clbl-score ${scoreClass}">${score}</span><span class="clbl-name">${esc(area.city)}</span></div>`,
+        className:  'city-label-icon',
+        iconSize:   [0, 0],
+        iconAnchor: [0, 0],
+      }),
+      interactive: false,
+      keyboard:    false,
+      zIndexOffset: 200,
+    }).addTo(_bubbleLayer);
+  };
 
-    _markers.addLayer(marker);
-  });
+  topCities.forEach((a, i)    => draw(a, true,  i + 1));
+  bottomCities.forEach((a, i) => draw(a, false, i + 1));
+}
+
+/* ── Render boundary outlines (toggleable, outline only) ─────────────────── */
+function renderPolygons(topCities, bottomCities) {
+  if (_polygonLayer) { _map.removeLayer(_polygonLayer); _polygonLayer = null; }
+  if (!_showBoundaries) return;
+  _polygonLayer = L.layerGroup().addTo(_map);
+
+  const draw = (area, isTop, rank, total) => {
+    const rings = _boundaryCache.get(area.city);
+    if (!rings?.length) return;   // no boundary data — bubble already shows it
+
+    const color  = isTop ? '#1a7a45' : '#b02020';
+    const weight = isTop ? 3 - (rank / total) * 1.2 : 2.2;
+    L.polygon(rings, { color, weight, fillOpacity: 0, interactive: false })
+      .addTo(_polygonLayer);
+  };
+
+  topCities.forEach((a, i)    => draw(a, true,  i + 1, topCities.length));
+  bottomCities.forEach((a, i) => draw(a, false, i + 1, bottomCities.length));
+}
+
+/* ── Update map (async — fetches real boundaries from OSM) ───────────────── */
+async function updateMapMarkers(areas) {
+  if (!_map) return;
+
+  const sorted = [...areas].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0));
+  const topCities    = sorted.slice(0, Math.min(10, sorted.length));
+  const bottomCities = sorted
+    .slice(-Math.min(5, sorted.length))
+    .filter(c => !topCities.some(t => t.city === c.city));
+
+  renderBubbles(topCities, bottomCities);
+  renderPolygons(topCities, bottomCities);
+
+  if (!_showBoundaries) return;
+
+  const allNeeded  = [...topCities, ...bottomCities];
+  const hasMissing = allNeeded.some(c => !_boundaryCache.has(c.city));
+
+  if (hasMissing) {
+    $('mapLoading').classList.add('visible');
+    await fetchBoundaries(allNeeded);
+    $('mapLoading').classList.remove('visible');
+    renderPolygons(topCities, bottomCities);
+  }
 }
 
 /* ── Filter + sort ────────────────────────────────────────────────────────── */
@@ -936,16 +1088,10 @@ function applyFilterSort(animate) {
     areas = areas.filter(a => a.avg_price == null || a.avg_price <= _budget);
   }
 
-  // Compute goal-based relevance score for each area
-  areas = areas.map(a => ({ ...a, relevance_score: computeRelevanceScore(a, _goal) }));
-
-  // Sort
-  const s = SORTS[_sortIdx];
-  areas = [...areas].sort((a, b) => {
-    const av = a[s.key] ?? (s.asc ?  Infinity : -Infinity);
-    const bv = b[s.key] ?? (s.asc ?  Infinity : -Infinity);
-    return s.asc ? (av - bv) : (bv - av);
-  });
+  // Compute goal-based relevance score and sort by it (descending)
+  areas = areas
+    .map(a => ({ ...a, relevance_score: computeRelevanceScore(a, _goal) }))
+    .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0));
 
   _areas = areas;
   updateStats(areas);
@@ -1013,7 +1159,7 @@ function renderAreasList(areas, animate) {
         </div>
         <div class="metric-item">
           <span class="metric-val ${trend.cls}">${esc(trend.text)}</span>
-          <span class="metric-lbl">מגמה שנתית</span>
+          <span class="metric-lbl" data-tip="שינוי ממוצע במחיר הדירה לשנה. ערך חיובי מציין עלייה, שלילי — ירידה.">מגמה שנתית</span>
         </div>
         <div class="metric-item">
           <span class="metric-val">${area.deal_count || 0}</span>
@@ -1021,7 +1167,7 @@ function renderAreasList(areas, animate) {
         </div>
         <div class="metric-item">
           <span class="metric-val">${socioStr}</span>
-          <span class="metric-lbl">מדד חברתי</span>
+          <span class="metric-lbl" data-tip="מדד כלכלי-חברתי של הרשות המקומית. הציון נע בין כ-2 לכ+3. ציון גבוה מציין רמה סוציו-אקונומית גבוהה יותר.">מדד חברתי כלכלי</span>
         </div>
       </div>
       <div class="area-action">
@@ -1031,21 +1177,70 @@ function renderAreasList(areas, animate) {
   }).join('');
 }
 
+/* ── Metric label tooltip (fixed-position, escapes overflow:hidden) ──────── */
+const _tipEl = document.createElement('div');
+_tipEl.className = 'metric-tooltip';
+document.body.appendChild(_tipEl);
+
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest('[data-tip]');
+  if (!el) return;
+  _tipEl.textContent = el.dataset.tip;
+  _tipEl.style.display = 'block';
+  requestAnimationFrame(() => {
+    const rect = el.getBoundingClientRect();
+    const tw   = _tipEl.offsetWidth;
+    const th   = _tipEl.offsetHeight;
+    _tipEl.style.left = Math.max(8, rect.right - tw) + 'px';
+    _tipEl.style.top  = Math.max(8, rect.top - th - 7) + 'px';
+  });
+});
+
+document.addEventListener('mouseout', e => {
+  if (e.target.hasAttribute('data-tip')) _tipEl.style.display = 'none';
+});
+
+/* ── Click city row → fly to on map ──────────────────────────────────────── */
+$('areasList').addEventListener('click', e => {
+  if (e.target.closest('.btn-browse')) return;
+  const row = e.target.closest('.area-row');
+  if (!row) return;
+  const cityName = row.querySelector('.area-name')?.textContent?.trim();
+  const coords   = cityName && CITY_COORDS[cityName];
+  if (!coords || !_map) return;
+
+  // Open map if it was collapsed
+  if (!_mapVisible) {
+    _mapVisible = true;
+    $('mapBody').classList.remove('collapsed');
+    $('mapToggleBtn').textContent = 'הסתר מפה ▲';
+  }
+
+  // Scroll map section into view then fly
+  $('investMap').closest('.map-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => { _map.flyTo(coords, 13, { duration: 0.75 }); }, 350);
+
+  // Brief ring highlight on the row
+  row.style.outline      = '2px solid var(--brand-400)';
+  row.style.outlineOffset = '-2px';
+  setTimeout(() => { row.style.outline = ''; row.style.outlineOffset = ''; }, 1400);
+});
+
 /* ── Init ─────────────────────────────────────────────────────────────────── */
 async function init() {
   showLoading();
-  buildSortTabs();
   try {
     const data = await fetch('/api/areas').then(r => r.json());
     if (!Array.isArray(data)) { showError('שגיאה', data.error || 'תגובה לא תקינה מהשרת.'); return; }
     _allAreas = data;
     buildDistrictPills(_allAreas);
     applyFilterSort(true);
-    // Init map after data renders so container has dimensions
-    requestAnimationFrame(() => {
+    // Init map after layout settles so container has correct dimensions
+    setTimeout(() => {
       initMap();
       updateMapMarkers(_areas);
-    });
+      setTimeout(() => { if (_map) _map.invalidateSize(); }, 200);
+    }, 50);
   } catch (e) {
     showError('שגיאת חיבור', 'ודא שהשרת פועל ונסה שוב.');
   }
