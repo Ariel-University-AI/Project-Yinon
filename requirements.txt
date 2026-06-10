@@ -1,13 +1,9 @@
+fastapi
+uvicorn[standard]
 numpy
 pandas
-matplotlib
-openpyxl
-streamlit
+joblib
 xgboost
 scikit-learn
-joblib
 requests
-folium
-streamlit-folium
-plotly
-beautifulsoup4
+curl_cffi

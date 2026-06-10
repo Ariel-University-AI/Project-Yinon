@@ -81,7 +81,7 @@
     .nav.is-scrolled { box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07); }
     .nav-inner {
       max-width: 1200px; margin: 0 auto; padding: 0 24px;
-      height: 60px; display: flex; align-items: center; justify-content: space-between;
+      height: 60px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
     }
     .nav-logo {
       display: flex; align-items: center; gap: 9px;
@@ -99,6 +99,48 @@
       display: flex; align-items: center; gap: 5px; transition: color 0.15s;
     }
     .nav-back:hover { color: var(--ink-900); }
+
+    /* ── Tool nav ────────────────────────────────────────────────────────────── */
+    .tool-nav { display: flex; align-items: center; justify-content: center; gap: 2px; }
+    .tnav-link {
+      display: flex; align-items: center; gap: 5px; direction: rtl;
+      padding: 5px 12px; border-radius: var(--r-md); white-space: nowrap;
+      font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
+      color: var(--ink-400); text-decoration: none; position: relative;
+      transition: color 0.15s var(--ease-out-quint), background 0.15s var(--ease-out-quint),
+                  transform 0.1s var(--ease-out-quint);
+      animation: tnav-in 0.38s var(--ease-out-quint) both;
+    }
+    .tnav-link:nth-child(1) { animation-delay: 0.06s; }
+    .tnav-link:nth-child(2) { animation-delay: 0.12s; }
+    .tnav-link:nth-child(3) { animation-delay: 0.18s; }
+    @keyframes tnav-in {
+      from { opacity: 0; transform: translateY(-5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .tnav-link:hover { color: var(--ink-700); background: var(--brand-100); }
+    .tnav-link:active { transform: scale(0.96); }
+    .tnav-link.active { color: var(--brand-700); font-weight: 600; }
+    .tnav-link.active::after {
+      content: ''; position: absolute; inset-inline: 10px; bottom: -1px;
+      height: 2px; background: var(--brand-500); border-radius: 1px;
+      transform-origin: right;
+      animation: tnav-ul 0.28s var(--ease-out-quint) 0.3s both;
+    }
+    @keyframes tnav-ul {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+    .tnav-icon { font-size: 1rem; flex-shrink: 0; }
+    @media (max-width: 580px) {
+      .tnav-label { display: none; }
+      .tnav-link  { padding: 5px 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tnav-link               { animation: none; opacity: 1; }
+      .tnav-link.active::after { animation: none; transform: scaleX(1); }
+      .tnav-link:active        { transform: none; }
+    }
 
     /* ── Page ────────────────────────────────────────────────────────────────── */
     .page { min-height: 100svh; padding-top: 60px; }
@@ -512,6 +554,11 @@
       <div class="nav-logo-icon">🏠</div>
       <span>יועץ נדל"ן חכם</span>
     </a>
+    <nav class="tool-nav" aria-label="כלי ניתוח">
+      <a href="/check"  class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק נכס</span></a>
+      <a href="/areas"  class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">אזורי השקעה</span></a>
+      <a href="/browse" class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">עיין בנכסים</span></a>
+    </nav>
     <a href="/" class="nav-back">← חזור לדף הבית</a>
   </div>
 </nav>
@@ -772,6 +819,14 @@ const dataSection  = $('dataSection');
 window.addEventListener('scroll', () => {
   $('mainNav').classList.toggle('is-scrolled', window.scrollY > 10);
 }, { passive: true });
+
+/* ── Active tool nav ─────────────────────────────────────────────────────── */
+document.querySelectorAll('.tnav-link').forEach(a => {
+  if (a.dataset.route === window.location.pathname) {
+    a.classList.add('active');
+    a.setAttribute('aria-current', 'page');
+  }
+});
 
 /* ── Score computation ────────────────────────────────────────────────────── */
 function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }

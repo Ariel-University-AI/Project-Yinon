@@ -589,6 +589,18 @@
       font-size: 0.75rem;
       font-weight: 600;
     }
+    .feature-link {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--brand-500);
+      text-decoration: none;
+      transition: color 0.15s, gap 0.15s;
+    }
+    .feature-link:hover { color: var(--brand-700); }
+    .feature-primary .feature-link { color: oklch(85% 0.08 155); }
+    .feature-primary .feature-link:hover { color: #fff; }
 
     /* ─────────────────────────────────────────────────────────────────────────
        HOW IT WORKS — genuine numbered sequence
@@ -890,7 +902,7 @@
       <div class="nav-logo-icon">🏠</div>
       <span>יועץ נדל"ן חכם</span>
     </a>
-    <a href="http://localhost:8501" target="_self" class="nav-cta">פתח את הכלי ←</a>
+    <a href="/check" class="nav-cta">פתח את הכלי ←</a>
   </div>
 </nav>
 
@@ -911,7 +923,7 @@
         הכנס פרטי נכס וקבל ציון כדאיות, השוואה לעסקאות דומות, והמלצות על אזורים.
       </p>
       <div class="hero-actions">
-        <a href="http://localhost:8501" target="_self" class="btn btn-primary">
+        <a href="/check" class="btn btn-primary">
           התחל עכשיו ←
         </a>
         <a href="#features" class="btn btn-outline">
@@ -1008,6 +1020,7 @@
           ויגיד לך אם המחיר שמבקשים הגיוני.
         </p>
         <span class="feature-pill">תמיכה מלאה בקישורי יד2</span>
+        <a href="/check" class="feature-link">בדוק נכס ←</a>
       </div>
       <div class="mini-demo">
         <div class="md-row">
@@ -1045,6 +1058,7 @@
           עם ציון כדאיות ומגמת מחירים שנתית.
         </p>
         <span class="feature-pill">מדד סוציו-אקונומי כלול</span>
+        <a href="/areas" class="feature-link">לדירוג אזורים ←</a>
       </div>
       <div class="feature-secondary reveal-motion delay-1">
         <div class="feature-icon-glyph">📊</div>
@@ -1055,6 +1069,7 @@
           ונרשמו ברשות המיסים.
         </p>
         <span class="feature-pill">נתוני רשות המיסים ישירות</span>
+        <a href="/browse" class="feature-link">עיין בנכסים ←</a>
       </div>
     </div>
   </div>
@@ -1177,7 +1192,7 @@
     <h2 class="reveal-motion">רוצה לבדוק נכס עכשיו?</h2>
     <p class="reveal-motion">חינמי לחלוטין. ללא הרשמה. תשובה תוך שניות.</p>
     <div class="reveal-motion">
-      <a href="http://localhost:8501" target="_self" class="btn btn-primary"
+      <a href="/check" class="btn btn-primary"
          style="font-size:1.05rem; padding:16px 36px; display:inline-flex;">
         פתח את יועץ נדל"ן חכם ←
       </a>
