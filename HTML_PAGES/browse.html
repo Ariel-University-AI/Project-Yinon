@@ -518,6 +518,29 @@
     .profile-bar.no-profile { background: var(--fair-bg); border-color: var(--fair); }
     .profile-bar.no-profile .profile-bar-btn { background: var(--fair); }
 
+    /* ── Scope toggle ───────────────────────────────────────────────────────── */
+    .scope-tabs {
+      display: flex; gap: 3px;
+      padding: 3px;
+      background: var(--surface);
+      border: 1px solid var(--ink-200);
+      border-radius: var(--r-md);
+      flex-shrink: 0;
+    }
+    .scope-tab {
+      padding: 6px 13px;
+      border: none; border-radius: var(--r-sm);
+      font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
+      color: var(--ink-500); background: none; cursor: pointer;
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+      white-space: nowrap;
+    }
+    .scope-tab.active {
+      background: #fff; color: var(--brand-700);
+      box-shadow: 0 1px 4px oklch(13% 0.015 32 / 0.1);
+    }
+    .scope-tab:not(.active):hover { color: var(--ink-700); background: var(--ink-100); }
+
     /* ── Mobile ──────────────────────────────────────────────────────────────── */
     @media (max-width: 640px) {
       .controls-inner { padding: 14px 16px 12px; }
@@ -578,12 +601,22 @@
         </div>
 
         <div class="city-mode-row">
-          <div class="city-picker">
+          <div class="scope-tabs" id="scopeTabs">
+            <button class="scope-tab active" data-scope="city">יישוב</button>
+            <button class="scope-tab" data-scope="district">מחוז</button>
+          </div>
+          <div class="city-picker" id="cityPickerWrap">
             <label class="city-label" for="cityInput">עיר / יישוב</label>
             <input type="text" class="city-input" id="cityInput"
                    list="citiesDatalist" placeholder="הקלד שם עיר..."
                    autocomplete="off" spellcheck="false" />
             <datalist id="citiesDatalist"></datalist>
+          </div>
+          <div class="city-picker" id="districtPickerWrap" style="display:none">
+            <label class="city-label" for="districtSelect">מחוז</label>
+            <select class="city-input" id="districtSelect">
+              <option value="">בחר מחוז...</option>
+            </select>
           </div>
           <div style="flex:1 1 0"></div>
           <div class="mode-tabs" id="modeTabs">
@@ -750,8 +783,10 @@
 })();
 
 /* ── State ────────────────────────────────────────────────────────────────── */
+let _scope       = 'city';   // 'city' | 'district'
 let _mode        = 'yad2';
 let _city        = null;
+let _district    = null;
 let _stats       = null;
 let _rawRecords  = [];
 let _records     = [];
@@ -763,17 +798,20 @@ const _yad2Cities  = new Set();
 
 /* ── DOM refs ─────────────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
-const cityInput    = $('cityInput');
-const fgYear       = $('fgYear');
-const yad2LoadBar  = $('yad2LoadBar');
-const loadYad2Btn  = $('loadYad2Btn');
-const statsStrip   = $('statsStrip');
-const stateEmpty   = $('stateEmpty');
-const stateLoading = $('stateLoading');
-const stateError   = $('stateError');
-const dataSection  = $('dataSection');
-const propsHead    = $('propsHead');
-const propsBody    = $('propsBody');
+const cityInput          = $('cityInput');
+const districtSelect     = $('districtSelect');
+const cityPickerWrap     = $('cityPickerWrap');
+const districtPickerWrap = $('districtPickerWrap');
+const fgYear             = $('fgYear');
+const yad2LoadBar        = $('yad2LoadBar');
+const loadYad2Btn        = $('loadYad2Btn');
+const statsStrip         = $('statsStrip');
+const stateEmpty         = $('stateEmpty');
+const stateLoading       = $('stateLoading');
+const stateError         = $('stateError');
+const dataSection        = $('dataSection');
+const propsHead          = $('propsHead');
+const propsBody          = $('propsBody');
 
 /* ── Nav shadow ───────────────────────────────────────────────────────────── */
 window.addEventListener('scroll', () => {
@@ -788,7 +826,36 @@ document.querySelectorAll('.tnav-link').forEach(a => {
   }
 });
 
+/* ── Effective mode helper ────────────────────────────────────────────────── */
+function effectiveMode() {
+  if (_scope === 'district') return _mode === 'yad2' ? 'district-yad2' : 'district-hist';
+  return _mode;
+}
+
 /* ── Column definitions ───────────────────────────────────────────────────── */
+const DIST_HIST_COLS = [
+  { key: 'city',           label: 'עיר',           sortable: true  },
+  { key: 'address',        label: 'כתובת',          sortable: false },
+  { key: 'area',           label: 'שטח',            sortable: true  },
+  { key: 'rooms',          label: 'חדרים',          sortable: true  },
+  { key: 'floor',          label: 'קומה',           sortable: true  },
+  { key: 'deal_amount',    label: 'מחיר שנמכר',     sortable: true  },
+  { key: 'predicted',      label: 'מחיר חזוי',      sortable: true  },
+  { key: 'viability_score',label: 'ציון כדאיות',    sortable: true  },
+  { key: 'deal_year',      label: 'שנה',            sortable: true  },
+  { key: 'action',         label: '',               sortable: false },
+];
+const DIST_YAD2_COLS = [
+  { key: 'city',           label: 'עיר',           sortable: true  },
+  { key: 'address',        label: 'כתובת',          sortable: false },
+  { key: 'area',           label: 'שטח',            sortable: true  },
+  { key: 'rooms',          label: 'חדרים',          sortable: true  },
+  { key: 'floor',          label: 'קומה',           sortable: true  },
+  { key: 'asking_price',   label: 'מחיר מבוקש',     sortable: true  },
+  { key: 'predicted',      label: 'מחיר חזוי',      sortable: true  },
+  { key: 'viability_score',label: 'ציון כדאיות',    sortable: true  },
+  { key: 'action',         label: '',               sortable: false },
+];
 const HIST_COLS = [
   { key: 'address',         label: 'כתובת',       sortable: false },
   { key: 'area',            label: 'שטח',          sortable: true  },
@@ -826,6 +893,18 @@ function showError(title, detail) {
   showState('error');
 }
 
+/* ── Load districts ───────────────────────────────────────────────────────── */
+async function loadDistricts() {
+  try {
+    const districts = await fetch('/api/districts').then(r => r.json());
+    districts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d; opt.textContent = d;
+      districtSelect.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
 /* ── Load cities ──────────────────────────────────────────────────────────── */
 async function loadCities() {
   try {
@@ -836,6 +915,7 @@ async function loadCities() {
     allCities.forEach(c => _allCities.add(c));
     yad2Cities.forEach(c => _yad2Cities.add(c));
     updateDatalist(_mode);
+    loadDistricts();
 
     // Auto-load city from ?city= URL param (linked from areas.html)
     const paramCity = new URLSearchParams(location.search).get('city');
@@ -862,6 +942,81 @@ function updateDatalist(mode) {
     opt.value = c;
     dl.appendChild(opt);
   });
+}
+
+/* ── Scope toggle ─────────────────────────────────────────────────────────── */
+document.querySelectorAll('.scope-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.scope === _scope) return;
+    document.querySelectorAll('.scope-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _scope = btn.dataset.scope;
+    _city = null; _district = null;
+    _rawRecords = []; _records = [];
+    cityInput.value = '';
+    districtSelect.value = '';
+    showState('empty');
+
+    if (_scope === 'district') {
+      cityPickerWrap.style.display     = 'none';
+      districtPickerWrap.style.display = '';
+      fgYear.style.display      = _mode === 'historical' ? '' : 'none';
+      yad2LoadBar.style.display = _mode === 'yad2' ? 'flex' : 'none';
+      $('stateEmptyTitle').textContent = 'בחר מחוז להתחלה';
+      $('stateEmptyDesc').textContent  = _mode === 'yad2'
+        ? 'בחר מחוז לטעינת מודעות יד2 מכל הערים'
+        : 'בחר מחוז לקבלת 5 העסקאות הטובות מכל יישוב';
+    } else {
+      cityPickerWrap.style.display     = '';
+      districtPickerWrap.style.display = 'none';
+      fgYear.style.display      = _mode === 'historical' ? '' : 'none';
+      yad2LoadBar.style.display = _mode === 'yad2' ? 'flex' : 'none';
+      $('stateEmptyTitle').textContent = 'בחר עיר להתחלה';
+      $('stateEmptyDesc').textContent  = 'הזן שם עיר כדי לקבל ניתוח עסקאות ומחירי שוק';
+    }
+  });
+});
+
+/* ── District select ──────────────────────────────────────────────────────── */
+districtSelect.addEventListener('change', function () {
+  const district = this.value;
+  if (!district) return;
+  _district = district;
+  onDistrictSelected(district);
+});
+
+async function onDistrictSelected(district) {
+  showState('loading');
+  try {
+    const stats = await fetch(`/api/district-stats?district=${encodeURIComponent(district)}`).then(r => r.json());
+    if (stats.error) { showError('מחוז לא נמצא', stats.error); return; }
+    _stats = stats;
+    setFilterDefaults(stats);
+    await loadHistoricalDistrict();
+  } catch (e) {
+    showError('שגיאה בטעינת הנתונים', 'ודא שהשרת פועל ונסה שוב.');
+  }
+}
+
+async function loadHistoricalDistrict() {
+  if (!_district) return;
+  showState('loading');
+  try {
+    const f = getFilters();
+    const params = new URLSearchParams({
+      district:  _district,
+      min_price: f.min_price, max_price: f.max_price,
+      min_rooms: f.min_rooms, max_rooms: f.max_rooms,
+      min_area:  f.min_area,  max_area:  f.max_area,
+      min_year:  f.min_year,  max_year:  f.max_year,
+    });
+    const data = await fetch(`/api/properties?${params}`).then(r => r.json());
+    _rawRecords = data.records || [];
+    _records    = [..._rawRecords];
+    renderResults(_records, 'district');
+  } catch (e) {
+    showError('שגיאה בטעינת הנתונים', 'ודא שהשרת פועל ונסה שוב.');
+  }
 }
 
 /* ── City input ───────────────────────────────────────────────────────────── */
@@ -960,6 +1115,34 @@ async function loadHistorical() {
   }
 }
 
+/* ── Load Yad2 district data ──────────────────────────────────────────────── */
+async function loadYad2District() {
+  if (!_district) return;
+  loadYad2Btn.disabled    = true;
+  loadYad2Btn.textContent = '⏳ טוען...';
+  showState('loading');
+  try {
+    const resp = await fetch('/api/yad2-browse-district', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ district: _district, max_pages: 2 }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) {
+      showError('שגיאה בטעינת נתוני יד2', data.error || 'נסה שוב מאוחר יותר.');
+    } else {
+      _rawRecords = data.records || [];
+      _records    = [..._rawRecords];
+      renderResults(_records, 'district-yad2');
+    }
+  } catch (e) {
+    showError('שגיאת חיבור ליד2', 'בדוק חיבור לאינטרנט ונסה שוב.');
+  } finally {
+    loadYad2Btn.disabled    = false;
+    loadYad2Btn.textContent = '🔄 טען מחדש';
+  }
+}
+
 /* ── Load Yad2 data ───────────────────────────────────────────────────────── */
 async function loadYad2() {
   if (!_city) return;
@@ -990,13 +1173,17 @@ async function loadYad2() {
 
 /* ── Render results ───────────────────────────────────────────────────────── */
 function renderResults(records, mode) {
-  updateStats(records, mode);
+  const statsMode = (mode === 'district-hist') ? 'historical'
+                  : (mode === 'district-yad2') ? 'yad2' : mode;
+  updateStats(records, statsMode);
   renderTableHead(mode);
   renderTableBody(records, mode, true);
   showState('data');
-  $('resultCountText').textContent =
-    `${records.length} ${mode === 'historical' ? 'עסקאות' : 'מודעות'} מוצגות`;
-  setTimeout(() => renderHistogram(records, mode), 0);
+  const lbl = (mode === 'district-hist' || mode === 'district-yad2')
+    ? 'מוצגות (5 מובילות לכל יישוב)'
+    : mode === 'historical' ? 'עסקאות מוצגות' : 'מודעות מוצגות';
+  $('resultCountText').textContent = `${records.length} ${lbl}`;
+  setTimeout(() => renderHistogram(records, statsMode), 0);
 }
 
 /* ── Stats strip ──────────────────────────────────────────────────────────── */
@@ -1012,7 +1199,7 @@ function updateStats(records, mode) {
   animNum($('statCount'),    0, records.length, 500, v => Math.round(v).toLocaleString());
   animNum($('statAvgPrice'), 0, avgPrice,        700, v => '₪' + Math.round(v).toLocaleString());
   animNum($('statAvgArea'),  0, avgArea,         600, v => Math.round(v) + ' מ"ר');
-  animNum($('statAvgViab'),  0, avgViab,         600, v => v.toFixed(1));
+  animNum($('statAvgViab'),  0, avgViab,         600, v => (v / 10).toFixed(1));
   $('statCountLbl').textContent = mode === 'historical' ? 'עסקאות' : 'מודעות';
 }
 
@@ -1117,7 +1304,9 @@ function renderHistogram(records, mode) {
 
 /* ── Table head ───────────────────────────────────────────────────────────── */
 function renderTableHead(mode) {
-  const cols = mode === 'historical' ? HIST_COLS : YAD2_COLS;
+  const cols = mode === 'district-hist' ? DIST_HIST_COLS
+             : mode === 'district-yad2' ? DIST_YAD2_COLS
+             : mode === 'historical'    ? HIST_COLS : YAD2_COLS;
   propsHead.innerHTML = '<tr>' + cols.map(col => {
     const active = col.key === _sortKey;
     const icon   = active ? (_sortAsc ? '▲' : '▼') : '▼';
@@ -1134,11 +1323,13 @@ propsHead.addEventListener('click', e => {
   const key = th.dataset.sort;
   if (_sortKey === key) { _sortAsc = !_sortAsc; }
   else { _sortKey = key; _sortAsc = false; }
+  const em = effectiveMode();
   sortRecords(_records);
-  renderTableHead(_mode);
-  renderTableBody(_records, _mode, false);
-  $('resultCountText').textContent =
-    `${_records.length} ${_mode === 'historical' ? 'עסקאות' : 'מודעות'} מוצגות`;
+  renderTableHead(em);
+  renderTableBody(_records, em, false);
+  const lbl = (em === 'district-hist' || em === 'district-yad2')
+    ? 'מוצגות (5 מובילות לכל יישוב)' : em === 'historical' ? 'עסקאות מוצגות' : 'מודעות מוצגות';
+  $('resultCountText').textContent = `${_records.length} ${lbl}`;
 });
 
 function sortRecords(arr) {
@@ -1151,8 +1342,12 @@ function sortRecords(arr) {
 
 /* ── Table body ───────────────────────────────────────────────────────────── */
 function renderTableBody(records, mode, animate) {
-  propsBody.innerHTML = records.slice(0, 50).map((row, i) => {
-    const cols  = mode === 'historical' ? HIST_COLS : YAD2_COLS;
+  const isDistrict = mode === 'district-hist' || mode === 'district-yad2';
+  const limit = isDistrict ? records.length : 50;
+  propsBody.innerHTML = records.slice(0, limit).map((row, i) => {
+    const cols = mode === 'district-hist' ? DIST_HIST_COLS
+               : mode === 'district-yad2' ? DIST_YAD2_COLS
+               : mode === 'historical'    ? HIST_COLS : YAD2_COLS;
     const ri    = animate ? `style="--ri:${i}"` : '';
     const cls   = animate ? 'row-animated' : '';
     const cells = cols.map(col => buildCell(col.key, row, mode)).join('');
@@ -1162,6 +1357,8 @@ function renderTableBody(records, mode, animate) {
 
 function buildCell(key, row, mode) {
   switch (key) {
+    case 'city':
+      return `<td style="white-space:nowrap;font-weight:500;color:var(--ink-700)">${esc(row.city || '—')}</td>`;
     case 'address': {
       const st = [row.street, row.house_num].filter(Boolean).join(' ') || '—';
       const hd = row.neighborhood || '';
@@ -1187,16 +1384,17 @@ function buildCell(key, row, mode) {
       if (s == null) return '<td>—</td>';
       const cls = s >= 70 ? 'viab-good' : s >= 45 ? 'viab-fair' : 'viab-low';
       return `<td><div class="viab-cell">
-        <span class="viab-num ${cls}">${Math.round(s)}</span>
+        <span class="viab-num ${cls}">${(s / 10).toFixed(1)}</span>
         <div class="viab-bar-track"><div class="viab-bar ${cls}" style="width:${Math.min(100,s).toFixed(0)}%"></div></div>
       </div></td>`;
     }
     case 'deal_year':
       return `<td class="td-num">${row.deal_year != null ? row.deal_year : '—'}</td>`;
     case 'action': {
-      if (mode === 'historical') {
+      if (mode === 'historical' || mode === 'district-hist') {
+        const cityForLink = mode === 'district-hist' ? (row.city || '') : (_city || '');
         const q = new URLSearchParams({
-          city:  _city || '', rooms: row.rooms || '',
+          city:  cityForLink, rooms: row.rooms || '',
           area:  row.area  || '', floor: row.floor != null ? row.floor : '',
           price: row.deal_amount || '',
         });
@@ -1227,13 +1425,25 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
     _mode    = newMode;
     _sortKey = 'viability_score';
     _sortAsc = false;
+    _rawRecords = []; _records = [];
     fgYear.style.display      = newMode === 'historical' ? '' : 'none';
     yad2LoadBar.style.display = newMode === 'yad2' ? 'flex' : 'none';
+
+    if (_scope === 'district') {
+      showState('empty');
+      $('stateEmptyTitle').textContent = newMode === 'yad2'
+        ? 'לחץ "טען מודעות מיד2" לטעינת מודעות מהמחוז'
+        : 'לחץ "עדכן תוצאות" לטעינת נתונים היסטוריים';
+      $('stateEmptyDesc').textContent = newMode === 'yad2'
+        ? 'הנתונים נשלפים מכל הערים הנתמכות במחוז'
+        : '5 העסקאות הטובות לכל יישוב לפי ציון כדאיות';
+      return;
+    }
+
     updateDatalist(newMode);
     if (_city && !_validCities.has(_city)) {
       _city = null;
       cityInput.value = '';
-      _rawRecords = []; _records = [];
       showState('empty');
       return;
     }
@@ -1248,9 +1458,11 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
 
 /* ── Apply / Clear ────────────────────────────────────────────────────────── */
 $('applyBtn').addEventListener('click', () => {
-  if (!_city) return;
-  if (_mode === 'historical') {
-    loadHistorical();
+  if (_scope === 'district') {
+    if (!_district) return;
+    if (_mode === 'yad2') loadYad2District(); else loadHistoricalDistrict();
+  } else if (_mode === 'historical') {
+    if (_city) loadHistorical();
   } else if (_rawRecords.length > 0) {
     _records = applyYad2Filters(_rawRecords);
     renderResults(_records, 'yad2');
@@ -1259,14 +1471,19 @@ $('applyBtn').addEventListener('click', () => {
 
 $('clearBtn').addEventListener('click', () => {
   if (_stats) setFilterDefaults(_stats);
-  if (_mode === 'historical' && _city) loadHistorical();
-  else if (_mode === 'yad2' && _rawRecords.length > 0) {
+  if (_scope === 'district' && _district) {
+    if (_mode === 'yad2') loadYad2District(); else loadHistoricalDistrict();
+  } else if (_mode === 'historical' && _city) {
+    loadHistorical();
+  } else if (_mode === 'yad2' && _rawRecords.length > 0) {
     _records = [..._rawRecords];
     renderResults(_records, 'yad2');
   }
 });
 
-loadYad2Btn.addEventListener('click', loadYad2);
+loadYad2Btn.addEventListener('click', () => {
+  if (_scope === 'district') loadYad2District(); else loadYad2();
+});
 
 /* ── Init ─────────────────────────────────────────────────────────────────── */
 // Start in Yad2 mode: hide year filter, show load bar

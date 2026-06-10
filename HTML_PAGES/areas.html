@@ -1095,7 +1095,7 @@ function renderBubbles(topCities, bottomCities) {
     const color     = isTop ? '#1a7a45' : '#b02020';
     const fillColor = isTop ? '#27ae60' : '#d94040';
     const radius    = isTop ? Math.max(5, 10 - rank * 0.45) : 5.5;
-    const score     = Math.round(area.relevance_score ?? area.avg_viability ?? 0);
+    const score     = ((area.relevance_score ?? area.avg_viability ?? 0) / 10).toFixed(1);
     const scoreClass = isTop ? 'score-top' : 'score-bot';
 
     const marker = L.circleMarker(coords, {
@@ -1206,7 +1206,7 @@ function updateStats(areas) {
   const topCity  = [...areas].sort((a, b) => (b.relevance_score||0) - (a.relevance_score||0))[0];
 
   animNum($('statCities'),   0, areas.length, 500, v => Math.round(v).toString());
-  animNum($('statAvgViab'),  0, avgViab,       700, v => v.toFixed(1));
+  animNum($('statAvgViab'),  0, avgViab,       700, v => (v / 10).toFixed(1));
   animNum($('statAvgPrice'), 0, avgPrice,      700, v => '₪' + (v / 1e6).toFixed(1) + 'מ\'');
   $('statTopCity').textContent = topCity ? topCity.city : '—';
 }
@@ -1228,7 +1228,7 @@ function renderAreasList(areas, animate) {
     const viab    = area.avg_viability;
     const cls     = viabCls(viab);
     const relScore = area.relevance_score;
-    const displayScore = relScore != null ? Math.round(relScore).toString() : (viab != null ? Math.round(viab).toString() : '—');
+    const displayScore = relScore != null ? (relScore / 10).toFixed(1) : (viab != null ? (viab / 10).toFixed(1) : '—');
     const barW    = relScore != null ? clamp(relScore, 0, 100).toFixed(0) : (viab != null ? clamp(viab, 0, 100).toFixed(0) : '0');
     const barCls  = relScore != null ? viabCls(relScore) : cls;
     const trend   = fmtTrend(area.trend_pct_yr);

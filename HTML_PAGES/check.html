@@ -863,7 +863,7 @@
           <div class="rc-score-row">
             <span class="rc-score-label">ציון כדאיות</span>
             <div class="rc-score-number">
-              <span id="rcScoreNum">0</span><span class="rc-score-denom"> / 100</span>
+              <span id="rcScoreNum">0.0</span><span class="rc-score-denom"> / 10</span>
             </div>
           </div>
           <div class="rc-score-track">
@@ -1171,7 +1171,7 @@
     fill.className = 'rc-score-fill ' + tier;
 
     // Score counter
-    animateCounter(document.getElementById('rcScoreNum'), score, 1100, 500);
+    animateCounter(document.getElementById('rcScoreNum'), score / 10, 1100, 500);
 
     // Bar fill — trigger after a tick so the transition fires
     setTimeout(() => { fill.style.width = score + '%'; }, 50);
@@ -1291,14 +1291,14 @@
 
   function animateCounter(el, target, duration, delay) {
     if (!window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
-      el.textContent = Math.round(target); return;
+      el.textContent = target.toFixed(1); return;
     }
     setTimeout(() => {
       const start = performance.now();
       function tick(now) {
         const t    = Math.min((now - start) / duration, 1);
         const ease = 1 - Math.pow(1 - t, 3);
-        el.textContent = Math.round(ease * target);
+        el.textContent = (ease * target).toFixed(1);
         if (t < 1) requestAnimationFrame(tick);
       }
       requestAnimationFrame(tick);

@@ -276,7 +276,8 @@ def rank_areas(req: AreasRequest):
 
 @app.get("/api/properties")
 def get_properties(
-    city:      str,
+    city:      str   = "",
+    district:  str   = "",
     min_price: float = 0,
     max_price: float = 1e12,
     min_rooms: float = 0,
@@ -287,8 +288,12 @@ def get_properties(
     max_year:  int   = 2100,
     limit:     int   = 50,
 ):
-    df  = _get_predictions()
-    sub = df[df["settlementNameHeb"] == city].copy()
+    df = _get_predictions()
+    if district:
+        cities = _DISTRICT_MAP.get(district, [])
+        sub = df[df["settlementNameHeb"].isin(cities)].copy()
+    else:
+        sub = df[df["settlementNameHeb"] == city].copy()
     if sub.empty:
         return JSONResponse({"records": [], "total": 0})
 
@@ -297,7 +302,14 @@ def get_properties(
     area_mask  = sub["assetArea"].isna()    | sub["assetArea"].between(min_area, max_area)
     year_mask  = sub["deal_year"].isna()    | sub["deal_year"].between(float(min_year), float(max_year))
     sub = sub[price_mask & rooms_mask & area_mask & year_mask]
-    sub = sub.sort_values("viability_score", ascending=False).head(limit)
+
+    if district:
+        sub = (sub.sort_values("viability_score", ascending=False)
+                  .groupby("settlementNameHeb", group_keys=False)
+                  .head(5))
+        sub = sub.sort_values("viability_score", ascending=False)
+    else:
+        sub = sub.sort_values("viability_score", ascending=False).head(limit)
 
     def _ss(v):
         return str(v) if pd.notna(v) else ""
@@ -308,8 +320,10 @@ def get_properties(
         try:    return round(float(v), d) if pd.notna(v) else None
         except: return None
 
-    records = [
-        {
+    include_city = bool(district)
+    records = []
+    for _, row in sub.iterrows():
+        rec = {
             "neighborhood":    _ss(row.get("neighborhood")),
             "street":          _ss(row.get("streetNameHeb")),
             "house_num":       _ss(row.get("houseNum")),
@@ -321,8 +335,9 @@ def get_properties(
             "viability_score": _sf(row.get("viability_score")),
             "deal_year":       _si(row.get("deal_year")),
         }
-        for _, row in sub.iterrows()
-    ]
+        if include_city:
+            rec["city"] = _ss(row.get("settlementNameHeb"))
+        records.append(rec)
     return {"records": records, "total": len(records)}
 
 
@@ -350,6 +365,37 @@ def city_stats(city: str):
         "min_year":       int(year_v.min()) if len(year_v) else 2000,
         "max_year":       int(year_v.max()) if len(year_v) else 2025,
         "yad2_supported": city in _YAD2_CITY_IDS,
+    }
+
+
+@app.get("/api/districts")
+def get_districts():
+    return JSONResponse(sorted(_DISTRICT_MAP.keys()))
+
+
+@app.get("/api/district-stats")
+def district_stats(district: str):
+    cities = _DISTRICT_MAP.get(district, [])
+    if not cities:
+        return JSONResponse({"error": "מחוז לא נמצא"}, status_code=404)
+    df  = _get_predictions()
+    sub = df[df["settlementNameHeb"].isin(cities)]
+    if sub.empty:
+        return JSONResponse({"error": "לא נמצאו נתונים"}, status_code=404)
+    price_v = sub["dealAmount"].dropna()
+    rooms_v = sub["assetRoomNum"].dropna()
+    area_v  = sub["assetArea"].dropna()
+    year_v  = sub["deal_year"].dropna()
+    return {
+        "deal_count": int(len(sub)),
+        "min_price":  round(float(price_v.min()))   if len(price_v) else 0,
+        "max_price":  round(float(price_v.max()))   if len(price_v) else 10_000_000,
+        "min_rooms":  float(rooms_v.min())  if len(rooms_v) else 1.0,
+        "max_rooms":  float(rooms_v.max())  if len(rooms_v) else 10.0,
+        "min_area":   round(float(area_v.min()))    if len(area_v)  else 0,
+        "max_area":   round(float(area_v.max()))    if len(area_v)  else 999,
+        "min_year":   int(year_v.min())  if len(year_v) else 2000,
+        "max_year":   int(year_v.max())  if len(year_v) else 2025,
     }
 
 
@@ -1042,6 +1088,66 @@ def yad2_browse(req: Yad2BrowseRequest):
         })
     records.sort(key=lambda r: r["viability_score"], reverse=True)
     return {"records": records, "total": len(records)}
+
+
+class Yad2BrowseDistrictRequest(BaseModel):
+    district:  str
+    max_pages: int = 2
+
+@app.post("/api/yad2-browse-district")
+def yad2_browse_district(req: Yad2BrowseDistrictRequest):
+    cities    = _DISTRICT_MAP.get(req.district, [])
+    supported = [c for c in cities if c in _YAD2_CITY_IDS]
+    if not supported:
+        return JSONResponse({"error": "אין ערים נתמכות ביד2 במחוז זה"}, status_code=422)
+
+    today = datetime.date.today()
+
+    def fetch_city(city):
+        rows, err = _fetch_yad2_city_listings(city, req.max_pages)
+        if err or not rows:
+            return []
+        city_mask = df_d["settlementNameHeb"] == city
+        sub_ml    = df_ml[city_mask]
+        fvec_base = sub_ml[feat_cols].median() if not sub_ml.empty else df_ml[feat_cols].median()
+        city_recs = []
+        for row in rows:
+            fv = fvec_base.copy()
+            if row["area"]  is not None: fv["assetArea"]    = row["area"]
+            if row["rooms"] is not None: fv["assetRoomNum"] = row["rooms"]
+            if row["floor"] is not None: fv["floor_num"]    = float(row["floor"])
+            fv["deal_year"]  = float(today.year)
+            fv["deal_month"] = float(today.month)
+            try:
+                predicted = float(model.predict(fv[feat_cols].values.reshape(1, -1))[0])
+            except Exception:
+                predicted = None
+            p    = float(row["asking_price"])
+            viab = round(min(100.0, max(0.0, 50.0 + (predicted - p) / p * 100 * 1.5)), 1) \
+                   if predicted and p > 0 else 50.0
+            city_recs.append({
+                "city":            city,
+                "neighborhood":    row["neighborhood"],
+                "street":          row["street"],
+                "house_num":       row["house_num"],
+                "area":            row["area"],
+                "rooms":           row["rooms"],
+                "floor":           row["floor"],
+                "asking_price":    row["asking_price"],
+                "predicted":       round(predicted) if predicted else None,
+                "viability_score": viab,
+                "yad2_id":         row["yad2_id"],
+            })
+        city_recs.sort(key=lambda r: r["viability_score"], reverse=True)
+        return city_recs[:5]
+
+    all_records = []
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        for city_recs in ex.map(fetch_city, supported):
+            all_records.extend(city_recs)
+
+    all_records.sort(key=lambda r: r["viability_score"], reverse=True)
+    return {"records": all_records, "total": len(all_records)}
 
 
 @app.post("/api/yad2-area-prices/start")
