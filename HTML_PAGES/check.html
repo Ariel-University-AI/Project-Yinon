@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>בדוק נכס ספציפי — יועץ נדל"ן חכם</title>
+  <title>בדוק נכס ספציפי — נדלניסט</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -115,7 +115,7 @@
     .tnav-link {
       display: flex; align-items: center; gap: 5px; direction: rtl;
       padding: 5px 12px; border-radius: var(--r-md); white-space: nowrap;
-      font-family: var(--font-body); font-size: 0.82rem; font-weight: 500;
+      font-family: var(--font-display); font-size: 0.82rem; font-weight: 400;
       color: var(--ink-400); text-decoration: none; position: relative;
       transition: color 0.15s var(--ease-out-quint), background 0.15s var(--ease-out-quint),
                   transform 0.1s var(--ease-out-quint);
@@ -128,8 +128,8 @@
       from { opacity: 0; transform: translateY(-5px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .tnav-link:hover { color: var(--ink-700); background: var(--brand-100); }
-    .tnav-link:active { transform: scale(0.96); }
+    .tnav-link:hover { color: var(--ink-700); background: var(--brand-100); transform: scale(1.08); }
+    .tnav-link:active { transform: scale(0.95); }
     .tnav-link.active { color: var(--brand-700); font-weight: 600; }
     .tnav-link.active::after {
       content: ''; position: absolute; inset-inline: 10px; bottom: -1px;
@@ -149,6 +149,7 @@
     @media (prefers-reduced-motion: reduce) {
       .tnav-link               { animation: none; opacity: 1; }
       .tnav-link.active::after { animation: none; transform: scaleX(1); }
+      .tnav-link:hover         { transform: none; }
       .tnav-link:active        { transform: none; }
     }
 
@@ -677,7 +678,7 @@
   <div class="nav-inner">
     <a href="/" class="nav-logo">
       <div class="nav-logo-icon">🏠</div>
-      <span>יועץ נדל"ן חכם</span>
+      <span>נדלניסט</span>
     </a>
     <nav class="tool-nav" aria-label="כלי ניתוח">
       <a href="/check"  class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק נכס</span></a>
