@@ -657,44 +657,6 @@
         <span id="yad2StatusText">מעדכן מחירים ממודעות יד2...</span>
       </div>
 
-      <!-- Filter row: budget + goal -->
-      <div class="filter-row">
-        <div class="filter-group">
-          <span class="filter-label">
-            תקציב מקסימלי (₪)
-            <span class="info-badge" data-tip="יוצג רק יישובים שהמחיר הממוצע בהם נמוך מהתקציב שהזנת. אפס = ללא הגבלה." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span>
-          </span>
-          <div class="budget-wrap">
-            <button class="budget-btn" id="budgetDown" type="button">−</button>
-            <input id="budgetInput" class="budget-input" type="number"
-                   value="2000000" step="100000" min="0" placeholder="ללא הגבלה" dir="ltr" />
-            <button class="budget-btn" id="budgetUp" type="button">+</button>
-          </div>
-        </div>
-
-        <div class="filter-group">
-          <span class="filter-label">
-            מה המטרה שלך?
-            <span class="info-badge" data-tip="בחר מטרה לקבלת דירוג מותאם אישית. הציון מחושב לפי שילוב שונה של כדאיות עסקה ומגמת מחירים." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span>
-          </span>
-          <div class="goal-toggle" id="goalToggle">
-            <button class="goal-btn active" data-goal="rental" type="button">
-              <span class="goal-icon">💰</span>
-              <span class="goal-content">
-                <span class="goal-title" style="display:inline-flex;align-items:center;gap:4px;">תשואה שוטפת <span class="info-badge" data-tip="ציון כדאיות השכרה: שילוב תשואה שנתית ברוטו, יחס מחיר לשכירות וביקוש לשכירות באזור. ציון גבוה = הנכס צפוי להניב הכנסה שוטפת טובה." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span></span>
-                <span class="goal-sub">(השכרה) — כדאיות עסקה</span>
-              </span>
-            </button>
-            <button class="goal-btn" data-goal="appreciation" type="button">
-              <span class="goal-icon">📈</span>
-              <span class="goal-content">
-                <span class="goal-title" style="display:inline-flex;align-items:center;gap:4px;">עליית ערך <span class="info-badge" data-tip="ציון פוטנציאל עליית מחיר לאורך זמן: מגמת עלייה היסטורית, מחסור בהיצע וביקוש גובר. ציון גבוה = הנכס צפוי לעלות בערכו — מתאים למשקיע לטווח ארוך." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span></span>
-                <span class="goal-sub">(מכירה ברווח) — מגמת עלייה</span>
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       <!-- District pills -->
       <div class="district-row" id="districtRow"></div>
