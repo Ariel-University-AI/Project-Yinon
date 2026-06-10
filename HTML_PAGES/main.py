@@ -52,6 +52,12 @@ _yad2_area_ts:    float = 0.0
 _yad2_area_busy:  bool  = False
 _yad2_area_lock         = threading.Lock()
 
+# Yad2 live rent cache for areas page
+_yad2_rent_cache: dict  = {}   # city_name -> median monthly rent
+_yad2_rent_ts:    float = 0.0
+_yad2_rent_busy:  bool  = False
+_yad2_rent_lock         = threading.Lock()
+
 
 def _get_predictions() -> pd.DataFrame:
     global _df_pred
@@ -183,6 +189,9 @@ def get_areas(min_deals: int = 5):
         for k, v in list(r.items()):
             if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
                 r[k] = None
+        city = r.get("city", "")
+        yad2_rent = _yad2_rent_cache.get(city)
+        r["avg_rent_yad2"] = int(yad2_rent) if yad2_rent else None
     return JSONResponse(records)
 
 
@@ -1117,6 +1126,167 @@ def yad2_area_status():
         "fetching": _yad2_area_busy,
         "prices":   _yad2_area_cache,
         "count":    len(_yad2_area_cache),
+    })
+
+
+def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
+                          page: int = 1, timeout: int = 20):
+    url = "https://www.yad2.co.il/realestate/rent"
+    params: dict = {"propertyGroup": "apartments", "propertyType": "1", "page": page}
+    if city_id is not None:
+        params["city"] = city_id
+    elif city_name:
+        params["cityText"] = city_name
+    else:
+        return None, "לא סופק מזהה עיר."
+    hdrs = {
+        **_YAD2_HEADERS,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Referer": "https://www.yad2.co.il/realestate/rent",
+        "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "same-origin",
+    }
+    try:
+        from curl_cffi import requests as _cr
+        import time as _t
+        for i, ver in enumerate(["chrome116", "chrome110", "chrome120", "chrome124"]):
+            try:
+                if i: _t.sleep(1.0)
+                s = _cr.Session(impersonate=ver)
+                s.headers.update(hdrs)
+                r = s.get(url, params=params, timeout=timeout)
+                if r.status_code == 200 and len(r.text) > 3000:
+                    return r.text, None
+            except Exception:
+                continue
+    except ImportError:
+        pass
+    try:
+        import requests as _req
+        r = _req.get(url, params=params, headers=hdrs, timeout=timeout)
+        if r.status_code == 200:
+            return r.text, None
+        return None, f"קוד שגיאה {r.status_code}"
+    except Exception as exc:
+        return None, str(exc)
+
+
+def _fetch_yad2_city_rent_listings(city_heb: str, max_pages: int = 2):
+    import difflib as _dl
+    city_id = _YAD2_CITY_IDS.get(city_heb)
+    if city_id is None:
+        norm = city_heb.strip().replace("-", " ").replace("–", " ")
+        candidates = {k.replace("-", " ").replace("–", " "): v for k, v in _YAD2_CITY_IDS.items()}
+        close = _dl.get_close_matches(norm, list(candidates.keys()), n=1, cutoff=0.75)
+        if close:
+            city_id = candidates[close[0]]
+    if city_id is None:
+        city_id = _lookup_yad2_city_id_api(city_heb)
+
+    all_items = []
+    for page in range(1, max_pages + 1):
+        if city_id is not None:
+            html, err = _fetch_yad2_rent_page(city_id=city_id, page=page)
+        else:
+            html, err = _fetch_yad2_rent_page(city_name=city_heb, page=page)
+        if err or not html:
+            break
+        items, parse_err = _parse_yad2_search_html(html)
+        if parse_err or not items:
+            break
+        real_ads = [i for i in items if isinstance(i, dict)
+                    and i.get("type") not in {"commercial_promoted", "promoted_native",
+                                               "banner", "promoted", "lead_gen"}]
+        all_items.extend(real_ads)
+        if len(items) < 20:
+            break
+
+    rents = []
+    for item in all_items:
+        price = item.get("price")
+        try:
+            price = float(price)
+        except (TypeError, ValueError):
+            continue
+        if price < 1_500 or price > 50_000:
+            continue
+        add_d = item.get("additionalDetails") or {}
+        rooms = add_d.get("roomsCount") or add_d.get("rooms")
+        area  = add_d.get("squareMeter") or add_d.get("squareMeters")
+        rooms_f = float(rooms) if rooms is not None else None
+        area_f  = float(area)  if area  is not None else None
+        if rooms_f is not None and rooms_f < 1.5:
+            continue
+        if area_f is not None and area_f < 30:
+            continue
+        rents.append(int(price))
+
+    return sorted(rents)
+
+
+@app.post("/api/yad2-rent-prices/start")
+def yad2_rent_start():
+    global _yad2_rent_busy
+    now = time.time()
+    with _yad2_rent_lock:
+        if _yad2_rent_busy:
+            return JSONResponse({"status": "running", "rents": _yad2_rent_cache, "count": len(_yad2_rent_cache)})
+        if now - _yad2_rent_ts < 1800 and _yad2_rent_cache:
+            return JSONResponse({"status": "cached", "rents": _yad2_rent_cache, "count": len(_yad2_rent_cache)})
+        _yad2_rent_busy = True
+
+    def _run():
+        global _yad2_rent_cache, _yad2_rent_ts, _yad2_rent_busy
+        counts = df_d["settlementNameHeb"].value_counts()
+        cities_to_fetch = [c for c in counts[counts >= 5].index.tolist() if isinstance(c, str)]
+
+        seen_ids: set = set()
+        unique_cities: list = []
+        for city in cities_to_fetch:
+            cid = _YAD2_CITY_IDS.get(city)
+            if cid is None:
+                unique_cities.append(city)
+            elif cid not in seen_ids:
+                seen_ids.add(cid)
+                unique_cities.append(city)
+
+        def _fetch_one(city):
+            try:
+                rents = _fetch_yad2_city_rent_listings(city, max_pages=2)
+                if len(rents) >= 3:
+                    idx = int(len(rents) * 0.50)  # median
+                    return city, rents[min(idx, len(rents) - 1)]
+            except Exception:
+                pass
+            return city, None
+
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            futs = {ex.submit(_fetch_one, c): c for c in unique_cities}
+            for fut in as_completed(futs):
+                city, rent = fut.result()
+                if rent is None:
+                    continue
+                with _yad2_rent_lock:
+                    _yad2_rent_cache[city] = rent
+                    cid = _YAD2_CITY_IDS.get(city)
+                    if cid:
+                        for alt, aid in _YAD2_CITY_IDS.items():
+                            if aid == cid:
+                                _yad2_rent_cache[alt] = rent
+
+        with _yad2_rent_lock:
+            _yad2_rent_ts   = time.time()
+            _yad2_rent_busy = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return JSONResponse({"status": "started", "rents": {}, "count": 0})
+
+
+@app.get("/api/yad2-rent-prices/status")
+def yad2_rent_status():
+    return JSONResponse({
+        "fetching": _yad2_rent_busy,
+        "rents":    _yad2_rent_cache,
+        "count":    len(_yad2_rent_cache),
     })
 
 

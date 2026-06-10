@@ -1265,8 +1265,11 @@ function renderAreasList(areas, animate) {
         </div>
       </div>
       <div class="area-rent">
-        <div class="rent-sublbl">שכ"ד/חודש<span class="rent-est-badge">*</span></div>
-        <span class="rent-val">${fmtRent(area.avg_rent_est)}</span>
+        ${area.avg_rent_yad2
+          ? `<div class="rent-sublbl">שכ"ד/חודש <span class="live-badge">יד2</span></div>
+             <span class="rent-val">${fmtRent(area.avg_rent_yad2)}</span>`
+          : `<div class="rent-sublbl">שכ"ד/חודש<span class="rent-est-badge">*</span></div>
+             <span class="rent-val">${fmtRent(area.avg_rent_est)}</span>`}
       </div>
       <div class="area-action">
         <a href="${href}" class="btn-browse">חפש עסקאות</a>
@@ -1375,6 +1378,44 @@ function _applyYad2Prices(prices) {
   if (updated) applyFilterSort(false);
 }
 
+function _applyYad2Rents(rents) {
+  const cities = Object.keys(rents);
+  if (!cities.length) return;
+  let updated = 0;
+  _allAreas = _allAreas.map(a => {
+    const r = rents[a.city];
+    if (!r) return a;
+    updated++;
+    return { ...a, avg_rent_yad2: r };
+  });
+  if (updated) applyFilterSort(false);
+}
+
+let _yad2RentPollTimer = null;
+
+async function _pollYad2Rent() {
+  try {
+    const data = await fetch('/api/yad2-rent-prices/status').then(r => r.json());
+    _applyYad2Rents(data.rents);
+    if (!data.fetching) {
+      clearInterval(_yad2RentPollTimer);
+      _yad2RentPollTimer = null;
+    }
+  } catch (_) {}
+}
+
+async function startYad2Rents() {
+  try {
+    const data = await fetch('/api/yad2-rent-prices/start', { method: 'POST' }).then(r => r.json());
+    if (data.rents && Object.keys(data.rents).length) {
+      _applyYad2Rents(data.rents);
+    }
+    if (data.status !== 'cached') {
+      _yad2RentPollTimer = setInterval(_pollYad2Rent, 6000);
+    }
+  } catch (_) {}
+}
+
 function _setYad2Status(spinning, text) {
   const bar      = $('yad2Status');
   const spinner  = $('yad2Spinner');
@@ -1422,7 +1463,7 @@ async function startYad2Prices() {
   }
 }
 
-init().then(() => startYad2Prices());
+init().then(() => { startYad2Prices(); startYad2Rents(); });
 </script>
 
 <script>
