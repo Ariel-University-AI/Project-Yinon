@@ -7,6 +7,9 @@ import json
 import pathlib
 import datetime
 import difflib
+import time
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 import joblib
@@ -42,6 +45,12 @@ _s_max = float(df_d["socio_index_avg"].max())
 # Load POI once (large file — load lazily on first use)
 _poi_df:  Optional[pd.DataFrame] = None
 _df_pred: Optional[pd.DataFrame] = None
+
+# Yad2 live price cache for areas page
+_yad2_area_cache: dict  = {}   # city_name -> avg_asking_price
+_yad2_area_ts:    float = 0.0
+_yad2_area_busy:  bool  = False
+_yad2_area_lock         = threading.Lock()
 
 
 def _get_predictions() -> pd.DataFrame:
@@ -119,8 +128,10 @@ def get_areas(min_deals: int = 5):
         trend_s = df.groupby("settlementNameHeb").apply(_trend)
     trend_s.name = "trend_pct_yr"
 
+    # Use all data for viability/trend, but recent data (2022+) for avg_price
+    df_recent = df[df["deal_year"] >= 2022] if "deal_year" in df.columns else df
+
     agg: dict = {
-        "avg_price":     ("dealAmount",      "mean"),
         "avg_gap":       ("gap_pct",         "mean"),
         "deal_count":    ("dealAmount",      "count"),
         "avg_viability": ("viability_score", "mean"),
@@ -129,6 +140,17 @@ def get_areas(min_deals: int = 5):
         agg["avg_socio"] = ("socio_index_avg", "mean")
 
     stats = df.groupby("settlementNameHeb").agg(**agg).join(trend_s).reset_index()
+
+    # Recent price: prefer 2022+ avg; fall back to all-time if fewer than 3 recent deals
+    recent_price = (df_recent.groupby("settlementNameHeb")["dealAmount"]
+                    .agg(recent_mean="mean", recent_count="count").reset_index())
+    alltime_price = df.groupby("settlementNameHeb")["dealAmount"].mean().reset_index(name="alltime_mean")
+    price_df = recent_price.merge(alltime_price, on="settlementNameHeb", how="right")
+    price_df["avg_price"] = price_df.apply(
+        lambda r: r["recent_mean"] if r["recent_count"] >= 3 else r["alltime_mean"], axis=1
+    )
+    stats = stats.merge(price_df[["settlementNameHeb", "avg_price"]], on="settlementNameHeb", how="left")
+
     stats = stats[stats["deal_count"] >= min_deals].copy()
     stats["district"]     = stats["settlementNameHeb"].map(lambda c: _CITY_TO_DISTRICT.get(c, "אחר"))
     stats["avg_viability"] = stats["avg_viability"].round(1)
@@ -139,6 +161,21 @@ def get_areas(min_deals: int = 5):
         stats["avg_socio"] = None
     else:
         stats["avg_socio"] = stats["avg_socio"].round(1)
+
+    def _est_yield(p):
+        # Gross rental yield benchmarks (Israeli market 2024)
+        if p is None or p <= 0: return 3.0
+        if p >= 5_000_000: return 1.9   # Tel Aviv center
+        if p >= 4_000_000: return 2.0
+        if p >= 3_000_000: return 2.2   # Jerusalem, Herzliya
+        if p >= 2_000_000: return 2.4   # Netanya, Ra'anana
+        if p >= 1_500_000: return 2.7   # Beer Sheva, Ashdod
+        if p >= 1_000_000: return 2.6   # Kiryat Gat, Kiryat Malachi
+        return 3.5                       # Deep periphery (Ofakim etc.)
+
+    stats["avg_rent_est"] = stats["avg_price"].apply(
+        lambda p: round(p * _est_yield(p) / 100 / 12) if pd.notna(p) and p > 0 else None
+    )
     stats = stats.sort_values("avg_viability", ascending=False)
 
     records = stats.rename(columns={"settlementNameHeb": "city"}).to_dict("records")
@@ -686,12 +723,43 @@ def _geocode(query: str):
 # ── Yad2 city-listing scraper ─────────────────────────────────────────────────
 
 _YAD2_CITY_IDS = {
-    "תל אביב יפו": 5000, "תל אביב": 5000, "ירושלים": 3000,
-    "נתניה": 7400, "פתח תקווה": 7900, "ראשון לציון": 8300,
-    "בת ים": 6200, "רחובות": 8400, "הרצליה": 6400, "כפר סבא": 6900,
-    "בני ברק": 6100, "רעננה": 8700, "מודיעין-מכבים-רעות": 4400, "מודיעין": 4400,
-    "עכו": 7600, "נצרת": 7300, "אילת": 2600, "רמת השרון": 800,
-    "לוד": 7000, "רמלה": 8800, "קריית גת": 7680,
+    # מחוז תל אביב — CBS codes verified from data.gov.il
+    "תל אביב יפו": 5000, "תל אביב-יפו": 5000, "תל אביב": 5000,
+    "בת ים": 6200, "חולון": 6600, "בני ברק": 6100,
+    "גבעתיים": 6300, "רמת גן": 8600,
+    "אור יהודה": 6710, "גבעת שמואל": 6350,
+    "קרית אונו": 7520, "יהוד מונוסון": 6850, "יהוד-מונוסון": 6850,
+    "אלעד": 1309,
+    # מחוז ירושלים
+    "ירושלים": 3000,
+    "בית שמש": 2610, "מעלה אדומים": 3616, "גבעת זאב": 3730,
+    "ביתר עילית": 3780, "מודיעין עילית": 3797, "אפרת": 3650,
+    "קרית ארבע": 1102, "מבשרת ציון": 1055,
+    # מחוז המרכז
+    "ראשון לציון": 8300, "פתח תקווה": 7900, "רחובות": 8400,
+    "נס ציונה": 7200, "לוד": 7000, "רמלה": 8500,
+    "מודיעין מכבים רעות": 1200, "מודיעין-מכבים-רעות": 1200, "מודיעין": 1200,
+    "רעננה": 8700, "כפר סבא": 6900, "הוד השרון": 9700,
+    "נתניה": 7400, "הרצליה": 6400, "רמת השרון": 2650,
+    "ראש העין": 2640, "יבנה": 2660, "גדרה": 2550,
+    "באר יעקב": 6010, "שוהם": 1304,
+    # מחוז חיפה
+    "חיפה": 4000,
+    "קרית אתא": 6800, "קרית ביאליק": 9500, "קרית מוצקין": 8200, "קרית ים": 9600,
+    "נשר": 7360, "טירת כרמל": 5160, "זכרון יעקב": 9300,
+    "פרדס חנה כרכור": 7810, "פרדס חנה-כרכור": 7810,
+    "חדרה": 6500, "אור עקיבא": 417, "עכו": 7600, "נהריה": 9100,
+    # מחוז הצפון
+    "נצרת": 7300, "נוף הגליל": 1061, "עפולה": 7700,
+    "קרית שמונה": 2800, "צפת": 8000, "טבריה": 6700,
+    "כרמיאל": 1139, "מגדל העמק": 874, "בית שאן": 9200,
+    "מעלות תרשיחא": 1085, "מעלות-תרשיחא": 1085, "יוקנעם עילית": 1041,
+    # מחוז הדרום
+    "באר שבע": 9000, "אשדוד": 70, "אשקלון": 7100,
+    "דימונה": 2200, "קרית מלאכי": 1034, "קריית גת": 7680, "קרית גת": 7680,
+    "נתיבות": 246, "שדרות": 1031, "אופקים": 31,
+    "מצפה רמון": 99, "גן יבנה": 166,
+    "ירוחם": 831, "ערד": 2560, "אילת": 2600,
 }
 
 _DISTRICT_MAP = {
@@ -729,9 +797,55 @@ _DISTRICT_MAP = {
 _CITY_TO_DISTRICT = {c: d for d, cities in _DISTRICT_MAP.items() for c in cities}
 
 
-def _fetch_yad2_search_page(city_id: int, page: int = 1, timeout: int = 20):
+_dynamic_city_ids: dict = {}  # city_name -> id (discovered via Yad2 API, None if not found)
+
+
+def _lookup_yad2_city_id_api(city: str) -> Optional[int]:
+    """Try to discover a Yad2 city ID via the GW API (best-effort)."""
+    if city in _dynamic_city_ids:
+        return _dynamic_city_ids[city]
+    try:
+        import requests as _r
+        resp = _r.get(
+            "https://gw.yad2.co.il/general/locations",
+            params={"text": city, "lang": "he", "type": "0"},
+            headers=_YAD2_HEADERS,
+            timeout=7,
+        )
+        if resp.ok:
+            d = resp.json()
+            items = (d.get("data", {}).get("cities") or d.get("cities") or
+                     d.get("data") or [])
+            if isinstance(items, dict):
+                items = list(items.values())
+            norm = city.strip().replace("-", " ").replace("–", " ")
+            for item in (items if isinstance(items, list) else []):
+                if not isinstance(item, dict):
+                    continue
+                name = (item.get("text") or item.get("name") or
+                        item.get("cityName") or "").strip()
+                if name == city or name.replace("-", " ") == norm:
+                    cid = (item.get("id") or item.get("cityId") or
+                           item.get("value") or item.get("code"))
+                    if cid:
+                        _dynamic_city_ids[city] = int(cid)
+                        return int(cid)
+    except Exception:
+        pass
+    _dynamic_city_ids[city] = None
+    return None
+
+
+def _fetch_yad2_search_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
+                            page: int = 1, timeout: int = 20):
     url = "https://www.yad2.co.il/realestate/forsale"
-    params = {"city": city_id, "propertyGroup": "apartments", "propertyType": "1", "page": page}
+    params: dict = {"propertyGroup": "apartments", "propertyType": "1", "page": page}
+    if city_id is not None:
+        params["city"] = city_id
+    elif city_name:
+        params["cityText"] = city_name
+    else:
+        return None, "לא סופק מזהה עיר."
     hdrs = {
         **_YAD2_HEADERS,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -807,15 +921,21 @@ def _fetch_yad2_city_listings(city_heb: str, max_pages: int = 3):
     city_id = _YAD2_CITY_IDS.get(city_heb)
     if city_id is None:
         norm  = city_heb.strip().replace("-", " ").replace("–", " ")
-        close = _dl.get_close_matches(norm, list(_YAD2_CITY_IDS.keys()), n=1, cutoff=0.78)
+        # Fuzzy match against expanded dict
+        candidates = {k.replace("-", " ").replace("–", " "): v for k, v in _YAD2_CITY_IDS.items()}
+        close = _dl.get_close_matches(norm, list(candidates.keys()), n=1, cutoff=0.75)
         if close:
-            city_id = _YAD2_CITY_IDS[close[0]]
-        else:
-            return [], f"עיר '{city_heb}' אינה ברשימת הערים הנתמכות לחיפוש יד2 כרגע."
+            city_id = candidates[close[0]]
+    if city_id is None:
+        # Last resort: try Yad2 GW API
+        city_id = _lookup_yad2_city_id_api(city_heb)
 
     all_items = []
     for page in range(1, max_pages + 1):
-        html, err = _fetch_yad2_search_page(city_id, page=page)
+        if city_id is not None:
+            html, err = _fetch_yad2_search_page(city_id=city_id, page=page)
+        else:
+            html, err = _fetch_yad2_search_page(city_name=city_heb, page=page)
         if err or not html:
             if page == 1:
                 return [], f"שגיאת חיבור ליד2: {err or 'תגובה ריקה'}."
@@ -913,6 +1033,91 @@ def yad2_browse(req: Yad2BrowseRequest):
         })
     records.sort(key=lambda r: r["viability_score"], reverse=True)
     return {"records": records, "total": len(records)}
+
+
+@app.post("/api/yad2-area-prices/start")
+def yad2_area_start():
+    global _yad2_area_busy
+    now = time.time()
+    with _yad2_area_lock:
+        if _yad2_area_busy:
+            return JSONResponse({"status": "running", "prices": _yad2_area_cache, "count": len(_yad2_area_cache)})
+        if now - _yad2_area_ts < 1800 and _yad2_area_cache:
+            return JSONResponse({"status": "cached", "prices": _yad2_area_cache, "count": len(_yad2_area_cache)})
+        _yad2_area_busy = True
+
+    def _run():
+        global _yad2_area_cache, _yad2_area_ts, _yad2_area_busy
+
+        # All cities that appear in the areas table (have >= 5 historical deals)
+        counts  = df_d["settlementNameHeb"].value_counts()
+        cities_to_fetch = [c for c in counts[counts >= 5].index.tolist() if isinstance(c, str)]
+
+        # Deduplicate: cities with same city_id use one representative
+        seen_ids: set  = set()
+        unique_cities: list = []
+        id_to_rep:   dict = {}
+        for city in cities_to_fetch:
+            cid = _YAD2_CITY_IDS.get(city)
+            if cid is None:
+                unique_cities.append(city)          # no known id → fetch by name
+            elif cid not in seen_ids:
+                seen_ids.add(cid)
+                unique_cities.append(city)
+                id_to_rep[cid] = city
+
+        def _fetch_one(city):
+            try:
+                rows, _ = _fetch_yad2_city_listings(city, max_pages=2)
+                if rows:
+                    # Include all apartments; exclude tiny studios (< 1.5 rooms or < 35 sqm)
+                    filtered = [
+                        r["asking_price"] for r in rows
+                        if r.get("asking_price", 0) > 300_000
+                        and (r.get("rooms") is None or r["rooms"] >= 2.0)
+                        and (r.get("area")  is None or r["area"]  >= 40)
+                    ]
+                    prices = sorted(filtered) if filtered else sorted(
+                        [r["asking_price"] for r in rows if r.get("asking_price", 0) > 300_000]
+                    )
+                    if len(prices) >= 3:
+                        # 60th percentile — skew toward larger/pricier typical apartments
+                        idx = int(len(prices) * 0.60)
+                        return city, prices[min(idx, len(prices) - 1)]
+            except Exception:
+                pass
+            return city, None
+
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            futs = {ex.submit(_fetch_one, c): c for c in unique_cities}
+            for fut in as_completed(futs):
+                city, price = fut.result()
+                if price is None:
+                    continue
+                with _yad2_area_lock:
+                    _yad2_area_cache[city] = price
+                    # Propagate to all aliases sharing the same city_id
+                    cid = _YAD2_CITY_IDS.get(city)
+                    if cid:
+                        for alt, aid in _YAD2_CITY_IDS.items():
+                            if aid == cid:
+                                _yad2_area_cache[alt] = price
+
+        with _yad2_area_lock:
+            _yad2_area_ts   = time.time()
+            _yad2_area_busy = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return JSONResponse({"status": "started", "prices": {}, "count": 0})
+
+
+@app.get("/api/yad2-area-prices/status")
+def yad2_area_status():
+    return JSONResponse({
+        "fetching": _yad2_area_busy,
+        "prices":   _yad2_area_cache,
+        "count":    len(_yad2_area_cache),
+    })
 
 
 def _match_settlement(city: str, settlement_list: list):
