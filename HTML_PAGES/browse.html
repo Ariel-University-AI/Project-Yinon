@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>עיין בנכסים — נדלניסט</title>
+  <title>חפש עסקאות — נדלניסט</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -476,6 +476,28 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* ── Profile bar ─────────────────────────────────────────────────────────── */
+    .profile-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; margin-bottom: 14px;
+      background: var(--brand-100); border: 1.5px solid var(--brand-200);
+      border-radius: var(--r-md);
+      font-size: 0.85rem;
+    }
+    .profile-bar-icon { font-size: 1rem; flex-shrink: 0; }
+    .profile-bar-text { flex: 1; color: var(--ink-700); }
+    .profile-bar-text strong { color: var(--brand-700); }
+    .profile-bar-btn {
+      white-space: nowrap; padding: 4px 12px;
+      background: var(--brand-700); color: #fff;
+      border-radius: var(--r-sm); font-size: 0.78rem; font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .profile-bar-btn:hover { background: var(--brand-900); }
+    .profile-bar.no-profile { background: var(--fair-bg); border-color: var(--fair); }
+    .profile-bar.no-profile .profile-bar-btn { background: var(--fair); }
+
     /* ── Mobile ──────────────────────────────────────────────────────────────── */
     @media (max-width: 640px) {
       .controls-inner { padding: 14px 16px 12px; }
@@ -507,9 +529,10 @@
         <span>נדלניסט</span>
       </a>
       <nav class="tool-nav" aria-label="כלי ניתוח">
-        <a href="/check"  class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק נכס</span></a>
-        <a href="/areas"  class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">אזורי השקעה</span></a>
-        <a href="/browse" class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">עיין בנכסים</span></a>
+        <a href="/check"   class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק עסקה</span></a>
+        <a href="/areas"   class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">איפה להשקיע?</span></a>
+        <a href="/browse"  class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">חפש עסקאות</span></a>
+        <a href="/profile" class="tnav-link" data-route="/profile"><span class="tnav-icon">👤</span><span class="tnav-label">פרופיל</span></a>
       </nav>
       <a href="/" class="nav-back">← חזור לדף הבית</a>
     </div>
@@ -518,7 +541,7 @@
   <div class="page">
     <header class="page-header">
       <div class="page-header-inner">
-        <h1>עיין בנכסים</h1>
+        <h1>חפש עסקאות</h1>
         <p>ניתוח שוק לפי עסקאות היסטוריות מרשות המיסים ומודעות חיות מיד2</p>
       </div>
     </header>
@@ -526,6 +549,14 @@
     <!-- Controls (sticky) -->
     <div class="controls-section">
       <div class="controls-inner">
+
+        <!-- Profile bar -->
+        <div class="profile-bar" id="profileBar">
+          <span class="profile-bar-icon">👤</span>
+          <span class="profile-bar-text" id="profileBarText">טוען פרופיל...</span>
+          <a href="/profile" class="profile-bar-btn">עדכן פרופיל ←</a>
+        </div>
+
         <div class="city-mode-row">
           <div class="city-picker">
             <label class="city-label" for="cityInput">עיר / יישוב</label>
@@ -681,6 +712,23 @@
   </div>
 
 <script>
+/* ── Profile bar ─────────────────────────────────────────────────────────── */
+(function () {
+  try {
+    const p    = JSON.parse(localStorage.getItem('investorProfile') || 'null');
+    const bar  = document.getElementById('profileBar');
+    const text = document.getElementById('profileBarText');
+    if (!p || !p.goal || !p.budget) {
+      bar.classList.add('no-profile');
+      text.innerHTML = 'לא הוגדר פרופיל עדיין — <a href="/profile" style="color:inherit;font-weight:600">הגדר עכשיו</a>';
+    } else {
+      const goalLabel = p.goal === 'appreciation' ? 'עליית ערך' : 'תשואה שוטפת';
+      const budgetFmt = '₪' + (p.budget / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'מ\'';
+      text.innerHTML = `<strong>פרופיל:</strong> מטרה — ${goalLabel} &nbsp;|&nbsp; תקציב — ${budgetFmt}`;
+    }
+  } catch (_) {}
+})();
+
 /* ── State ────────────────────────────────────────────────────────────────── */
 let _mode        = 'yad2';
 let _city        = null;
@@ -1132,7 +1180,7 @@ function buildCell(key, row, mode) {
           area:  row.area  || '', floor: row.floor != null ? row.floor : '',
           price: row.deal_amount || '',
         });
-        return `<td><a href="/check?${q}" class="btn-action" target="_blank">בדוק נכס</a></td>`;
+        return `<td><a href="/check?${q}" class="btn-action" target="_blank">בדוק עסקה</a></td>`;
       } else {
         const href = row.yad2_id ? `https://www.yad2.co.il/item/${row.yad2_id}` : '#';
         return `<td><a href="${href}" class="btn-action" target="_blank" rel="noopener">יד2 ↗</a></td>`;

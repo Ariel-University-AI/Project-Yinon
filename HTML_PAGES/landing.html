@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>נדלניסט — בדוק נכס לפני שאתה משלם</title>
+  <title>נדלניסט — בדוק עסקה לפני שאתה משלם</title>
   <meta name="description" content="כלי AI חינמי לניתוח מחירי נדל&quot;ן בישראל. מבוסס על 6,609 עסקאות אמיתיות מרשות המיסים. בדוק אם המחיר הוגן תוך שניות." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -148,6 +148,27 @@
       line-height: 1;
       color: #fff;
     }
+
+    .nav-profile-btn {
+      display: inline-block;
+      background: transparent;
+      color: var(--ink-700);
+      padding: 8px 16px;
+      border-radius: var(--r-md);
+      border: 1.5px solid var(--ink-200);
+      font-family: var(--font-body);
+      font-weight: 500;
+      font-size: 0.875rem;
+      text-decoration: none;
+      transition: border-color 0.18s, background 0.18s, transform 0.2s var(--ease-out-quint);
+    }
+    .nav-profile-btn:hover {
+      border-color: var(--brand-400);
+      background: var(--brand-100);
+      color: var(--brand-700);
+      transform: translateY(-1px);
+    }
+    @media (max-width: 520px) { .nav-profile-btn { display: none; } }
 
     .nav-cta {
       display: inline-block;
@@ -932,7 +953,7 @@
       }
       .verdict-card { max-width: 460px; }
       .feature-primary { grid-template-columns: 1fr; gap: 32px; padding: 32px; }
-      .features-secondary, .how-steps, .trust-grid { grid-template-columns: 1fr; }
+      .features-secondary, .how-steps, .trust-grid { grid-template-columns: 1fr !important; }
       .stats-inner { grid-template-columns: repeat(2, 1fr); }
       .stat + .stat::after { display: none; }
       .how-steps { gap: 1px; }
@@ -953,7 +974,10 @@
       <div class="nav-logo-icon">🏠</div>
       <span>נדלניסט</span>
     </a>
-    <a href="/check" class="nav-cta">פתח את הכלי ←</a>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <a href="/profile" class="nav-profile-btn">👤 פרופיל משקיע</a>
+      <a href="/check" class="nav-cta">פתח את הכלי ←</a>
+    </div>
   </div>
 </nav>
 
@@ -980,7 +1004,7 @@
         הכנס פרטי נכס וקבל ציון כדאיות, השוואה לעסקאות דומות, והמלצות על אזורים.
       </p>
       <div class="hero-actions">
-        <a href="/check" class="btn btn-primary">
+        <a href="/check" class="btn btn-primary" id="heroStartBtn">
           התחל עכשיו ←
         </a>
         <a href="#features" class="btn btn-outline">
@@ -1070,14 +1094,14 @@
     <!-- Primary: Check Property — full width, inverted -->
     <div class="feature-primary reveal-motion">
       <div>
-        <h3>🏡 בדוק נכס ספציפי</h3>
+        <h3>🏡 בדוק עסקה ספציפי</h3>
         <p>
           מצאת דירה? הכנס את פרטיה — עיר, מחיר, שטח, חדרים וקומה —
           או פשוט הדבק קישור ישיר מיד2. המודל יחשב מחיר שוק הוגן
           ויגיד לך אם המחיר שמבקשים הגיוני.
         </p>
         <span class="feature-pill">תמיכה מלאה בקישורי יד2</span>
-        <a href="/check" class="feature-link">בדוק נכס ←</a>
+        <a href="/check" class="feature-link">בדוק עסקה ←</a>
       </div>
       <div class="mini-demo">
         <div class="md-row">
@@ -1104,8 +1128,8 @@
       </div>
     </div>
 
-    <!-- Secondary: two smaller features -->
-    <div class="features-secondary">
+    <!-- Secondary: three smaller features -->
+    <div class="features-secondary" style="grid-template-columns: repeat(3, 1fr);">
       <div class="feature-secondary reveal-motion">
         <div class="feature-icon-glyph">🔍</div>
         <h3>מצא אזור להשקעה</h3>
@@ -1119,14 +1143,24 @@
       </div>
       <div class="feature-secondary reveal-motion delay-1">
         <div class="feature-icon-glyph">📊</div>
-        <h3>עיין בנכסים ביישוב</h3>
+        <h3>חפש עסקאות ביישוב</h3>
         <p>
           בחר עיר וסנן לפי גודל, חדרים ושנה — ראה כל עסקה אמיתית שנמכרה שם,
           ממוינת לפי ציון כדאיות. לא הצעות מחיר: עסקאות שנסגרו בפועל
           ונרשמו ברשות המיסים.
         </p>
         <span class="feature-pill">נתוני רשות המיסים ישירות</span>
-        <a href="/browse" class="feature-link">עיין בנכסים ←</a>
+        <a href="/browse" class="feature-link">חפש עסקאות ←</a>
+      </div>
+      <div class="feature-secondary reveal-motion delay-2">
+        <div class="feature-icon-glyph">👤</div>
+        <h3>הגדר פרופיל משקיע</h3>
+        <p>
+          הגדר את התקציב שלך ואת מטרת ההשקעה — תשואה שוטפת משכירות
+          או עליית ערך. הכלי ישתמש בפרטים כדי להתאים המלצות אישיות.
+        </p>
+        <span class="feature-pill">שמירה מקומית, ללא הרשמה</span>
+        <a href="/profile" class="feature-link">הגדר פרופיל ←</a>
       </div>
     </div>
   </div>
@@ -1246,7 +1280,7 @@
 <!-- ── FINAL CTA ─────────────────────────────────────────────────────────────── -->
 <section class="cta-section">
   <div class="container">
-    <h2 class="reveal-motion">רוצה לבדוק נכס עכשיו?</h2>
+    <h2 class="reveal-motion">רוצה לבדוק עסקה עכשיו?</h2>
     <p class="reveal-motion">חינמי לחלוטין. ללא הרשמה. תשובה תוך שניות.</p>
     <div class="reveal-motion">
       <a href="/check" class="btn btn-primary"
@@ -1275,6 +1309,21 @@
   /* ─── Motion preference ──────────────────────────────────────────────────── */
   const prefersMotion = window.matchMedia('(prefers-reduced-motion: no-preference)');
   const wantsMotion = prefersMotion.matches;
+
+  /* ─── "התחל עכשיו" — redirect to profile if not yet configured ─────────── */
+  (function () {
+    const btn = document.getElementById('heroStartBtn');
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      try {
+        const profile = JSON.parse(localStorage.getItem('investorProfile') || 'null');
+        if (!profile || !profile.goal || !profile.budget) {
+          e.preventDefault();
+          window.location.href = '/profile';
+        }
+      } catch (_) {}
+    });
+  })();
 
   /* ─── Nav: scrolled state ────────────────────────────────────────────────── */
   const nav = document.getElementById('mainNav');

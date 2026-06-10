@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>אזורי השקעה — נדלניסט</title>
+  <title>איפה להשקיע? — נדלניסט</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -166,65 +166,31 @@
     }
     .controls-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px 12px; }
 
-    /* ── Filter row ──────────────────────────────────────────────────────────── */
-    .filter-row {
-      display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
-      padding-bottom: 12px; margin-bottom: 10px;
-      border-bottom: 1px solid var(--ink-100);
+    /* ── Profile bar ─────────────────────────────────────────────────────────── */
+    .profile-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; margin-bottom: 10px;
+      background: var(--brand-100); border: 1.5px solid var(--brand-200);
+      border-radius: var(--r-md);
+      font-size: 0.85rem;
     }
-    .filter-group { display: flex; flex-direction: column; gap: 6px; }
-    .filter-label {
-      font-size: 0.78rem; font-weight: 600; color: var(--ink-500);
-      letter-spacing: 0.01em; display: flex; align-items: center; gap: 5px;
+    .profile-bar-icon { font-size: 1rem; flex-shrink: 0; }
+    .profile-bar-text { flex: 1; color: var(--ink-700); }
+    .profile-bar-text strong { color: var(--brand-700); }
+    .profile-bar-btn {
+      white-space: nowrap; padding: 4px 12px;
+      background: var(--brand-700); color: #fff;
+      border-radius: var(--r-sm); font-size: 0.78rem; font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s;
     }
-    .info-badge {
-      width: 14px; height: 14px; border-radius: 50%;
-      background: var(--ink-200); color: var(--ink-500);
-      font-size: 0.62rem; display: inline-flex; align-items: center;
-      justify-content: center; cursor: help; font-style: normal;
+    .profile-bar-btn:hover { background: var(--brand-900); }
+    .profile-bar.no-profile {
+      background: var(--fair-bg); border-color: var(--fair);
     }
-
-    /* Budget */
-    .budget-wrap { display: flex; align-items: center; gap: 5px; }
-    .budget-btn {
-      width: 28px; height: 28px; border-radius: 50%;
-      border: 1.5px solid var(--ink-200); background: var(--bg);
-      color: var(--ink-700); cursor: pointer; font-size: 1rem; line-height: 1;
-      display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-body);
-      transition: border-color 0.15s, background 0.15s;
+    .profile-bar.no-profile .profile-bar-btn {
+      background: var(--fair);
     }
-    .budget-btn:hover { border-color: var(--brand-500); background: var(--brand-100); }
-    .budget-input {
-      width: 120px; padding: 5px 9px; text-align: center;
-      border: 1.5px solid var(--ink-200); border-radius: var(--r-sm);
-      font-family: var(--font-body); font-size: 0.875rem; color: var(--ink-900);
-      background: var(--bg); direction: ltr;
-      transition: border-color 0.15s;
-    }
-    .budget-input:focus { outline: none; border-color: var(--brand-500); }
-
-    /* Goal toggle */
-    .goal-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
-    .goal-btn {
-      display: flex; align-items: center; gap: 8px;
-      padding: 7px 12px;
-      border: 1.5px solid var(--ink-200); border-radius: var(--r-md);
-      background: var(--bg); cursor: pointer; text-align: right;
-      transition: border-color 0.18s, background 0.18s;
-    }
-    .goal-btn:hover { border-color: var(--brand-400); background: var(--brand-100); }
-    .goal-btn.active {
-      border-color: var(--brand-700); background: var(--brand-100);
-    }
-    .goal-icon { font-size: 1.1rem; flex-shrink: 0; }
-    .goal-content { display: flex; flex-direction: column; gap: 1px; }
-    .goal-title {
-      font-size: 0.82rem; font-weight: 600; color: var(--ink-700); line-height: 1.2;
-    }
-    .goal-sub { font-size: 0.69rem; color: var(--ink-400); line-height: 1.2; }
-    .goal-btn.active .goal-title { color: var(--brand-700); }
-    .goal-btn.active .goal-sub   { color: var(--brand-500); }
 
     /* District pills */
     .district-row {
@@ -556,9 +522,10 @@
       <span>נדלניסט</span>
     </a>
     <nav class="tool-nav" aria-label="כלי ניתוח">
-      <a href="/check"  class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק נכס</span></a>
-      <a href="/areas"  class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">אזורי השקעה</span></a>
-      <a href="/browse" class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">עיין בנכסים</span></a>
+      <a href="/check"   class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק עסקה</span></a>
+      <a href="/areas"   class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">איפה להשקיע?</span></a>
+      <a href="/browse"  class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">חפש עסקאות</span></a>
+      <a href="/profile" class="tnav-link" data-route="/profile"><span class="tnav-icon">👤</span><span class="tnav-label">פרופיל</span></a>
     </nav>
     <a href="/" class="nav-back">← חזור לדף הבית</a>
   </div>
@@ -567,7 +534,7 @@
 <div class="page">
   <header class="page-header">
     <div class="page-header-inner">
-      <h1>אזורי השקעה</h1>
+      <h1>איפה להשקיע?</h1>
       <p>דירוג יישובים לפי ציון כדאיות ממוצע, מחיר, מגמה ונפח עסקאות — מתוך 6,609 עסקאות היסטוריות</p>
     </div>
   </header>
@@ -576,43 +543,11 @@
   <div class="controls-section">
     <div class="controls-inner">
 
-      <!-- Filter row: budget + goal -->
-      <div class="filter-row">
-        <div class="filter-group">
-          <span class="filter-label">
-            תקציב מקסימלי (₪)
-            <span class="info-badge" title="יוצג רק יישובים שהמחיר הממוצע בהם נמוך מהתקציב שהזנת. אפס = ללא הגבלה.">?</span>
-          </span>
-          <div class="budget-wrap">
-            <button class="budget-btn" id="budgetDown" type="button">−</button>
-            <input id="budgetInput" class="budget-input" type="number"
-                   value="2000000" step="100000" min="0" placeholder="ללא הגבלה" dir="ltr" />
-            <button class="budget-btn" id="budgetUp" type="button">+</button>
-          </div>
-        </div>
-
-        <div class="filter-group">
-          <span class="filter-label">
-            מה המטרה שלך?
-            <span class="info-badge" title="בחר מטרה לקבלת דירוג מותאם אישית. הציון מחושב לפי שילוב שונה של כדאיות עסקה ומגמת מחירים.">?</span>
-          </span>
-          <div class="goal-toggle" id="goalToggle">
-            <button class="goal-btn active" data-goal="rental" type="button">
-              <span class="goal-icon">💰</span>
-              <span class="goal-content">
-                <span class="goal-title">תשואה שוטפת</span>
-                <span class="goal-sub">(השכרה) — כדאיות עסקה</span>
-              </span>
-            </button>
-            <button class="goal-btn" data-goal="appreciation" type="button">
-              <span class="goal-icon">📈</span>
-              <span class="goal-content">
-                <span class="goal-title">עליית ערך</span>
-                <span class="goal-sub">(מכירה ברווח) — מגמת עלייה</span>
-              </span>
-            </button>
-          </div>
-        </div>
+      <!-- Profile summary bar -->
+      <div class="profile-bar" id="profileBar">
+        <span class="profile-bar-icon">👤</span>
+        <span class="profile-bar-text" id="profileBarText">טוען פרופיל...</span>
+        <a href="/profile" class="profile-bar-btn">עדכן פרופיל ←</a>
       </div>
 
       <!-- District pills -->
@@ -790,6 +725,26 @@ let _budget     = 2_000_000;
 let _goal       = 'rental';
 let _mapVisible = true;
 
+/* ── Load profile from localStorage ──────────────────────────────────────── */
+(function loadProfile() {
+  try {
+    const p = JSON.parse(localStorage.getItem('investorProfile') || 'null');
+    if (p && p.budget) _budget = p.budget;
+    if (p && p.goal)   _goal   = p.goal === 'appreciation' ? 'appreciation' : 'rental';
+
+    const bar  = document.getElementById('profileBar');
+    const text = document.getElementById('profileBarText');
+    if (!p || !p.goal || !p.budget) {
+      bar.classList.add('no-profile');
+      text.innerHTML = 'לא הוגדר פרופיל עדיין — <a href="/profile" style="color:inherit;font-weight:600">הגדר עכשיו</a>';
+    } else {
+      const goalLabel = p.goal === 'appreciation' ? 'עליית ערך' : 'תשואה שוטפת';
+      const budgetFmt = '₪' + (p.budget / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'מ\'';
+      text.innerHTML = `<strong>פרופיל:</strong> מטרה — ${goalLabel} &nbsp;|&nbsp; תקציב — ${budgetFmt}`;
+    }
+  } catch (_) {}
+})();
+
 /* ── Map state ────────────────────────────────────────────────────────────── */
 let _map             = null;
 let _bubbleLayer     = null;
@@ -912,36 +867,6 @@ $('districtRow').addEventListener('click', e => {
   _district = pill.dataset.d;
   document.querySelectorAll('.district-pill').forEach(p =>
     p.classList.toggle('active', p.dataset.d === _district)
-  );
-  applyFilterSort(false);
-});
-
-/* ── Budget input ─────────────────────────────────────────────────────────── */
-const budgetInput = $('budgetInput');
-budgetInput.addEventListener('change', () => {
-  _budget = parseInt(budgetInput.value, 10) || 0;
-  applyFilterSort(false);
-});
-$('budgetDown').addEventListener('click', () => {
-  _budget = Math.max(0, (_budget || 0) - 100_000);
-  budgetInput.value = _budget || '';
-  applyFilterSort(false);
-});
-$('budgetUp').addEventListener('click', () => {
-  _budget = (_budget || 0) + 100_000;
-  budgetInput.value = _budget;
-  applyFilterSort(false);
-});
-
-/* ── Goal toggle ──────────────────────────────────────────────────────────── */
-$('goalToggle').addEventListener('click', e => {
-  const btn = e.target.closest('.goal-btn');
-  if (!btn) return;
-  const newGoal = btn.dataset.goal;
-  if (newGoal === _goal) return;
-  _goal = newGoal;
-  document.querySelectorAll('.goal-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.goal === _goal)
   );
   applyFilterSort(false);
 });
@@ -1227,7 +1152,7 @@ function renderAreasList(areas, animate) {
         </div>
       </div>
       <div class="area-action">
-        <a href="${href}" class="btn-browse">עיין בנכסים</a>
+        <a href="${href}" class="btn-browse">חפש עסקאות</a>
       </div>
     </div>`;
   }).join('');

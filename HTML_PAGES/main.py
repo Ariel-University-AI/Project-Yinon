@@ -83,6 +83,10 @@ def areas():
 def browse():
     return FileResponse(BASE / "browse.html")
 
+@app.get("/profile")
+def profile():
+    return FileResponse(BASE / "profile.html")
+
 
 # ── API ───────────────────────────────────────────────────────────────────────
 

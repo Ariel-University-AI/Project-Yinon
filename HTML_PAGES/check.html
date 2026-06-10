@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>בדוק נכס ספציפי — נדלניסט</title>
+  <title>בדוק עסקה ספציפי — נדלניסט</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -658,6 +658,28 @@
       animation: spin 0.7s linear infinite;
     }
 
+    /* ── Profile bar ─────────────────────────────────────────────────────────── */
+    .profile-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; margin-bottom: 20px;
+      background: var(--brand-100); border: 1.5px solid var(--brand-200);
+      border-radius: var(--r-md);
+      font-size: 0.85rem;
+    }
+    .profile-bar-icon { font-size: 1rem; flex-shrink: 0; }
+    .profile-bar-text { flex: 1; color: var(--ink-700); }
+    .profile-bar-text strong { color: var(--brand-700); }
+    .profile-bar-btn {
+      white-space: nowrap; padding: 4px 12px;
+      background: var(--brand-700); color: #fff;
+      border-radius: var(--r-sm); font-size: 0.78rem; font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .profile-bar-btn:hover { background: var(--brand-900); }
+    .profile-bar.no-profile { background: var(--fair-bg); border-color: var(--fair); }
+    .profile-bar.no-profile .profile-bar-btn { background: var(--fair); }
+
     /* ── Responsive ──────────────────────────────────────────────────────────── */
     @media (max-width: 860px) {
       .main {
@@ -681,9 +703,10 @@
       <span>נדלניסט</span>
     </a>
     <nav class="tool-nav" aria-label="כלי ניתוח">
-      <a href="/check"  class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק נכס</span></a>
-      <a href="/areas"  class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">אזורי השקעה</span></a>
-      <a href="/browse" class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">עיין בנכסים</span></a>
+      <a href="/check"   class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק עסקה</span></a>
+      <a href="/areas"   class="tnav-link" data-route="/areas"><span class="tnav-icon">🗺️</span><span class="tnav-label">איפה להשקיע?</span></a>
+      <a href="/browse"  class="tnav-link" data-route="/browse"><span class="tnav-icon">📊</span><span class="tnav-label">חפש עסקאות</span></a>
+      <a href="/profile" class="tnav-link" data-route="/profile"><span class="tnav-icon">👤</span><span class="tnav-label">פרופיל</span></a>
     </nav>
     <a href="/" class="nav-back">← חזור לדף הבית</a>
   </div>
@@ -693,7 +716,7 @@
 <div class="page">
   <div class="page-header">
     <div class="page-header-inner">
-      <h1>🏡 בדוק נכס ספציפי</h1>
+      <h1>🏡 בדוק עסקה ספציפי</h1>
       <p>הכנס פרטי נכס — או הדבק קישור מיד2 — וקבל ניתוח מחיר, ציון כדאיות ופירוט מלא.</p>
     </div>
   </div>
@@ -702,6 +725,13 @@
 
     <!-- ── Input panel ──────────────────────────────────────────────────────── -->
     <div class="input-panel">
+
+      <!-- Profile bar -->
+      <div class="profile-bar" id="profileBar">
+        <span class="profile-bar-icon">👤</span>
+        <span class="profile-bar-text" id="profileBarText">טוען פרופיל...</span>
+        <a href="/profile" class="profile-bar-btn">עדכן פרופיל ←</a>
+      </div>
 
       <!-- Tabs -->
       <div class="tabs">
@@ -751,7 +781,7 @@
           </div>
           <button class="btn-submit" id="urlSubmitBtn">
             <span class="spinner"></span>
-            <span class="btn-text">בדוק נכס</span>
+            <span class="btn-text">בדוק עסקה</span>
           </button>
         </div>
       </div>
@@ -789,7 +819,7 @@
         </div>
         <button class="btn-submit" id="manSubmitBtn">
           <span class="spinner"></span>
-          <span class="btn-text">בדוק נכס</span>
+          <span class="btn-text">בדוק עסקה</span>
         </button>
       </div>
 
@@ -800,7 +830,7 @@
     <div class="result-panel">
       <div class="result-empty" id="resultEmpty">
         <div class="result-empty-icon">🏡</div>
-        <p>מלא את פרטי הנכס<br>ולחץ "בדוק נכס"<br>כדי לראות את הניתוח כאן.</p>
+        <p>מלא את פרטי הנכס<br>ולחץ "בדוק עסקה"<br>כדי לראות את הניתוח כאן.</p>
       </div>
 
       <div class="result-card" id="resultCard">
@@ -899,6 +929,23 @@
 </div>
 
 <script>
+  /* ── Profile bar ────────────────────────────────────────────────────────── */
+  (function () {
+    try {
+      const p    = JSON.parse(localStorage.getItem('investorProfile') || 'null');
+      const bar  = document.getElementById('profileBar');
+      const text = document.getElementById('profileBarText');
+      if (!p || !p.goal || !p.budget) {
+        bar.classList.add('no-profile');
+        text.innerHTML = 'לא הוגדר פרופיל עדיין — <a href="/profile" style="color:inherit;font-weight:600">הגדר עכשיו</a>';
+      } else {
+        const goalLabel = p.goal === 'appreciation' ? 'עליית ערך' : 'תשואה שוטפת';
+        const budgetFmt = '₪' + (p.budget / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'מ\'';
+        text.innerHTML = `<strong>פרופיל:</strong> מטרה — ${goalLabel} &nbsp;|&nbsp; תקציב — ${budgetFmt}`;
+      }
+    } catch (_) {}
+  })();
+
   /* ── Nav scroll ──────────────────────────────────────────────────────────── */
   const nav = document.getElementById('mainNav');
   window.addEventListener('scroll', () => {
@@ -936,7 +983,7 @@
         const batYam = Array.from(sel.options).findIndex(o => o.value === 'בת ים');
         if (batYam >= 0) sel.selectedIndex = batYam;
       });
-      // Prefill from URL params (e.g. from /browse "בדוק נכס" button)
+      // Prefill from URL params (e.g. from /browse "בדוק עסקה" button)
       const p = new URLSearchParams(location.search);
       if (p.has('city') && p.has('price')) {
         document.querySelector('[data-tab="manual"]')?.click();
