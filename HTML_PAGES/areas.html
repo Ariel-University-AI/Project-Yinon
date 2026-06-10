@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
   <title>אזורי השקעה — נדלניסט</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@300;400;700&family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     /* ── Tokens ──────────────────────────────────────────────────────────────── */
     :root {
+      color-scheme: light;
       --brand-900: oklch(27% 0.09 32);
       --brand-700: oklch(44% 0.13 32);
       --brand-500: oklch(64% 0.11 32);
@@ -45,6 +47,7 @@
       --ease-out-expo:  cubic-bezier(0.16, 1, 0.3,  1);
       --z-nav:      100;
       --z-controls: 90;
+      --z-toast:    200;
     }
 
     /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -84,15 +87,35 @@
       height: 60px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
     }
     .nav-logo {
-      display: flex; align-items: center; gap: 9px;
-      font-family: var(--font-display); font-weight: 400; font-size: 1rem;
-      color: var(--ink-900); text-decoration: none; transition: opacity 0.15s;
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; user-select: none;
     }
-    .nav-logo:hover { opacity: 0.75; }
     .nav-logo-icon {
-      width: 32px; height: 32px; background: var(--brand-700);
-      border-radius: var(--r-md); display: flex; align-items: center;
-      justify-content: center; color: #fff; font-size: 1rem;
+      width: 50px; height: 40px;
+      display: flex; align-items: flex-end; justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.22s var(--ease-out-quint);
+    }
+    .nav-logo:hover .nav-logo-icon { transform: translateY(-2px); }
+    .logo-wordmark {
+      display: inline-flex;
+      font-family: var(--font-body);
+      font-weight: 900; font-size: 1.2rem;
+      color: var(--brand-700); line-height: 1; letter-spacing: -0.01em;
+      transition: color 0.18s var(--ease-out-quint);
+    }
+    .nav-logo:hover .logo-wordmark { color: var(--brand-900); }
+    .logo-char {
+      display: inline-block;
+      animation: logoCharIn 0.55s var(--ease-out-expo) calc(0.08s + var(--i, 0) * 0.04s) both;
+    }
+    @keyframes logoCharIn {
+      from { opacity: 0; transform: translateY(-7px); filter: blur(3px); }
+      to   { opacity: 1; transform: translateY(0);    filter: blur(0);   }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .logo-char { animation: none; opacity: 1; transform: none; filter: none; }
+      .nav-logo:hover .nav-logo-icon { transform: none; }
     }
     .nav-back {
       font-size: 0.85rem; color: var(--ink-500); text-decoration: none;
@@ -181,7 +204,42 @@
       width: 14px; height: 14px; border-radius: 50%;
       background: var(--ink-200); color: var(--ink-500);
       font-size: 0.62rem; display: inline-flex; align-items: center;
-      justify-content: center; cursor: help; font-style: normal;
+      justify-content: center; cursor: pointer; font-style: normal;
+      transition: background 0.15s var(--ease-out-quint), color 0.15s var(--ease-out-quint);
+    }
+    .info-badge:hover { background: var(--brand-200); color: var(--brand-700); }
+    .info-badge.active { background: var(--brand-700); color: #fff; }
+
+    /* ── Info popover ──────────────────────────────────────────────────────────── */
+    .info-popover {
+      position: fixed;
+      z-index: var(--z-toast);
+      width: 240px;
+      background: #ffffff !important;
+      color-scheme: light;
+      forced-color-adjust: none;
+      border: 1px solid #ddd;
+      border-radius: var(--r-lg);
+      padding: 12px 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      color: #2a2420 !important;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.90) translateY(6px);
+      transform-origin: top center;
+      transition: opacity 0.22s var(--ease-out-quint), transform 0.22s var(--ease-out-quint);
+    }
+    .info-popover.open {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .info-popover { transition: opacity 0.01ms; transform: none; }
+      .info-popover.open { transform: none; }
     }
 
     /* Budget */
@@ -435,7 +493,7 @@
     }
 
     .area-rank {
-      flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+      flex: 0 0 34px; width: 38px; height: 38px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 0.82rem; font-weight: 700;
       background: var(--surface); color: var(--ink-500);
@@ -551,9 +609,9 @@
 
 <nav class="nav" id="mainNav">
   <div class="nav-inner">
-    <a href="/" class="nav-logo">
-      <div class="nav-logo-icon">🏠</div>
-      <span>נדלניסט</span>
+    <a href="/" class="nav-logo" aria-label="נדלניסט — דף הבית">
+      <div class="nav-logo-icon" aria-hidden="true"><svg width="52" height="40" viewBox="0 0 52 42" fill="none" xmlns="http://www.w3.org/2000/svg"><style>.lgo-d{stroke-dasharray:1000;stroke-dashoffset:1000;animation:lgo-in 0.65s cubic-bezier(.22,1,.36,1) both}@keyframes lgo-in{to{stroke-dashoffset:0}}@media(prefers-reduced-motion:reduce){.lgo-d{animation:none;stroke-dashoffset:0}}</style><line class="lgo-d" style="animation-delay:.55s" x1="0" y1="39.5" x2="50" y2="39.5" stroke="var(--brand-700)" stroke-width="1.4"/><rect class="lgo-d" style="animation-delay:.1s" x="0.5" y="16" width="18" height="23" stroke="var(--brand-700)" stroke-width="1.5" fill="none"/><line class="lgo-d" style="animation-delay:.38s" x1="1" y1="20" x2="18" y2="20" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.38s" x1="1" y1="24" x2="18" y2="24" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.38s" x1="1" y1="28" x2="18" y2="28" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.38s" x1="1" y1="32" x2="18" y2="32" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.38s" x1="1" y1="36" x2="18" y2="36" stroke="var(--brand-700)" stroke-width="0.9"/><rect class="lgo-d" style="animation-delay:.2s" x="19.5" y="22" width="16" height="17" stroke="var(--brand-700)" stroke-width="1.4" fill="none"/><line class="lgo-d" style="animation-delay:.43s" x1="20" y1="26" x2="35" y2="26" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.43s" x1="20" y1="30" x2="35" y2="30" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.43s" x1="20" y1="34" x2="35" y2="34" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.43s" x1="20" y1="38" x2="35" y2="38" stroke="var(--brand-700)" stroke-width="0.9"/><rect class="lgo-d" style="animation-delay:.3s" x="36.5" y="28" width="13" height="11" stroke="var(--brand-700)" stroke-width="1.3" fill="none"/><line class="lgo-d" style="animation-delay:.48s" x1="37" y1="32" x2="49" y2="32" stroke="var(--brand-700)" stroke-width="0.9"/><line class="lgo-d" style="animation-delay:.48s" x1="37" y1="36" x2="49" y2="36" stroke="var(--brand-700)" stroke-width="0.9"/></svg></div>
+      <span class="logo-wordmark"><span class="logo-char" style="--i:0">נ</span><span class="logo-char" style="--i:1">ד</span><span class="logo-char" style="--i:2">ל</span><span class="logo-char" style="--i:3">נ</span><span class="logo-char" style="--i:4">י</span><span class="logo-char" style="--i:5">ס</span><span class="logo-char" style="--i:6">ט</span></span>
     </a>
     <nav class="tool-nav" aria-label="כלי ניתוח">
       <a href="/check"  class="tnav-link" data-route="/check"><span class="tnav-icon">🏡</span><span class="tnav-label">בדוק נכס</span></a>
@@ -581,7 +639,7 @@
         <div class="filter-group">
           <span class="filter-label">
             תקציב מקסימלי (₪)
-            <span class="info-badge" title="יוצג רק יישובים שהמחיר הממוצע בהם נמוך מהתקציב שהזנת. אפס = ללא הגבלה.">?</span>
+            <span class="info-badge" data-tip="יוצג רק יישובים שהמחיר הממוצע בהם נמוך מהתקציב שהזנת. אפס = ללא הגבלה." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span>
           </span>
           <div class="budget-wrap">
             <button class="budget-btn" id="budgetDown" type="button">−</button>
@@ -594,20 +652,20 @@
         <div class="filter-group">
           <span class="filter-label">
             מה המטרה שלך?
-            <span class="info-badge" title="בחר מטרה לקבלת דירוג מותאם אישית. הציון מחושב לפי שילוב שונה של כדאיות עסקה ומגמת מחירים.">?</span>
+            <span class="info-badge" data-tip="בחר מטרה לקבלת דירוג מותאם אישית. הציון מחושב לפי שילוב שונה של כדאיות עסקה ומגמת מחירים." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span>
           </span>
           <div class="goal-toggle" id="goalToggle">
             <button class="goal-btn active" data-goal="rental" type="button">
               <span class="goal-icon">💰</span>
               <span class="goal-content">
-                <span class="goal-title">תשואה שוטפת</span>
+                <span class="goal-title" style="display:inline-flex;align-items:center;gap:4px;">תשואה שוטפת <span class="info-badge" data-tip="ציון כדאיות השכרה: שילוב תשואה שנתית ברוטו, יחס מחיר לשכירות וביקוש לשכירות באזור. ציון גבוה = הנכס צפוי להניב הכנסה שוטפת טובה." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span></span>
                 <span class="goal-sub">(השכרה) — כדאיות עסקה</span>
               </span>
             </button>
             <button class="goal-btn" data-goal="appreciation" type="button">
               <span class="goal-icon">📈</span>
               <span class="goal-content">
-                <span class="goal-title">עליית ערך</span>
+                <span class="goal-title" style="display:inline-flex;align-items:center;gap:4px;">עליית ערך <span class="info-badge" data-tip="ציון פוטנציאל עליית מחיר לאורך זמן: מגמת עלייה היסטורית, מחסור בהיצע וביקוש גובר. ציון גבוה = הנכס צפוי לעלות בערכו — מתאים למשקיע לטווח ארוך." role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">?</span></span>
                 <span class="goal-sub">(מכירה ברווח) — מגמת עלייה</span>
               </span>
             </button>
@@ -1240,7 +1298,7 @@ document.body.appendChild(_tipEl);
 
 document.addEventListener('mouseover', e => {
   const el = e.target.closest('[data-tip]');
-  if (!el) return;
+  if (!el || el.classList.contains('info-badge')) return;
   _tipEl.textContent = el.dataset.tip;
   _tipEl.style.display = 'block';
   requestAnimationFrame(() => {
@@ -1303,6 +1361,62 @@ async function init() {
 }
 
 init();
+</script>
+
+<script>
+/* ── Info badge popovers ─────────────────────────────────────────────────── */
+(function () {
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="info-popover" id="infoPopover" role="tooltip" aria-live="polite"></div>'
+  );
+  const pop = document.getElementById('infoPopover');
+  let activeBtn = null;
+
+  function positionPop(badge) {
+    const r  = badge.getBoundingClientRect();
+    const pw = 240, gap = 8;
+    let top  = r.bottom + gap;
+    if (top + 110 > window.innerHeight - 8) top = r.top - 110 - gap;
+    let left = r.right - pw;
+    if (left < 8) left = 8;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    pop.style.left = left + 'px';
+    pop.style.top  = top  + 'px';
+  }
+
+  document.querySelectorAll('.info-badge').forEach(function (badge) {
+    badge.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const isOpen = activeBtn === badge && pop.classList.contains('open');
+      if (activeBtn) {
+        activeBtn.classList.remove('active');
+        activeBtn.setAttribute('aria-expanded', 'false');
+        pop.classList.remove('open');
+      }
+      if (isOpen) { activeBtn = null; return; }
+      pop.textContent = badge.dataset.tip;
+      positionPop(badge);
+      pop.getBoundingClientRect(); // force reflow so transition fires from initial state
+      pop.classList.add('open');
+      badge.classList.add('active');
+      badge.setAttribute('aria-expanded', 'true');
+      activeBtn = badge;
+    });
+    badge.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); badge.click(); }
+      if (e.key === 'Escape' && pop.classList.contains('open')) { badge.click(); badge.focus(); }
+    });
+  });
+
+  document.addEventListener('click', function () {
+    if (!pop.classList.contains('open')) return;
+    pop.classList.remove('open');
+    if (activeBtn) { activeBtn.classList.remove('active'); activeBtn.setAttribute('aria-expanded', 'false'); activeBtn = null; }
+  });
+
+  window.addEventListener('scroll',  function () { if (activeBtn) positionPop(activeBtn); }, { passive: true });
+  window.addEventListener('resize',  function () { if (activeBtn) positionPop(activeBtn); }, { passive: true });
+})();
 </script>
 </body>
 </html>
