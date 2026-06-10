@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -13,21 +13,21 @@
   <style>
     /* ── Tokens ─────────────────────────────────────────────────────────────── */
     :root {
-      /* Brand — deep forest green */
-      --brand-900: oklch(18% 0.09 155);
-      --brand-700: oklch(27% 0.12 155);
-      --brand-500: oklch(40% 0.14 155);
-      --brand-400: oklch(50% 0.15 155);
-      --brand-200: oklch(88% 0.06 155);
-      --brand-100: oklch(96% 0.015 155);
+      /* Brand — terracotta */
+      --brand-900: oklch(27% 0.09 32);
+      --brand-700: oklch(44% 0.13 32);
+      --brand-500: oklch(64% 0.11 32);
+      --brand-400: oklch(72% 0.09 32);
+      --brand-200: oklch(88% 0.04 32);
+      --brand-100: oklch(96% 0.015 32);
 
       /* Ink scale */
-      --ink-900: oklch(13% 0.015 155);
-      --ink-700: oklch(28% 0.025 155);
-      --ink-500: oklch(45% 0.03 155);
-      --ink-400: oklch(56% 0.03 155);
-      --ink-200: oklch(82% 0.018 155);
-      --ink-100: oklch(95% 0.01 155);
+      --ink-900: oklch(13% 0.012 40);
+      --ink-700: oklch(28% 0.022 40);
+      --ink-500: oklch(45% 0.025 40);
+      --ink-400: oklch(56% 0.022 40);
+      --ink-200: oklch(82% 0.015 40);
+      --ink-100: oklch(95% 0.010 40);
 
       /* Semantic */
       --good:    oklch(50% 0.16 148);
@@ -38,8 +38,8 @@
       --bad-bg:  oklch(96% 0.04 25);
 
       /* Page */
-      --bg:      oklch(99.5% 0.003 155);
-      --surface: oklch(97% 0.008 155);
+      --bg:      oklch(95.5% 0.024 80);
+      --surface: oklch(97.5% 0.016 78);
 
       /* Fonts */
       --font-display: 'Noto Serif Hebrew', Georgia, serif;
@@ -113,7 +113,7 @@
 
     /* Scrolled state — deeper shadow clarifies separation from content */
     .nav.is-scrolled {
-      box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07);
+      box-shadow: 0 2px 16px oklch(13% 0.015 32 / 0.07);
     }
 
     .nav-inner {
@@ -165,7 +165,7 @@
     .nav-cta:hover {
       background: var(--brand-900);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px oklch(18% 0.09 155 / 0.2);
+      box-shadow: 0 4px 12px oklch(18% 0.09 32 / 0.2);
     }
     .nav-cta:active {
       transform: scale(0.97);
@@ -198,7 +198,7 @@
     .hero-kicker {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       font-family: var(--font-body);
       font-size: 0.8rem;
       font-weight: 600;
@@ -206,9 +206,60 @@
       border: 1px solid var(--brand-200);
       background: var(--brand-100);
       border-radius: 100px;
-      padding: 5px 12px;
+      padding: 6px 14px 6px 10px;
       margin-bottom: 20px;
+      position: relative;
       animation: kickerReveal 0.55s var(--ease-out-expo) 0.05s both;
+    }
+    .kicker-text { display: flex; flex-direction: column; gap: 1px; }
+    .kicker-main { font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
+    .kicker-sub  { font-size: 0.71rem; font-weight: 400; color: var(--brand-400); line-height: 1.3; }
+
+    .kicker-info {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; flex-shrink: 0;
+      border: 1.5px solid var(--brand-300); border-radius: 50%;
+      background: transparent; color: var(--brand-500);
+      font-family: var(--font-body); font-size: 0.72rem; font-weight: 700;
+      line-height: 1; cursor: pointer; padding: 0;
+      transition: background 0.15s var(--ease-out-quint), color 0.15s var(--ease-out-quint),
+                  border-color 0.15s var(--ease-out-quint), transform 0.15s var(--ease-out-quint);
+    }
+    .kicker-info:hover {
+      background: var(--brand-200); color: var(--brand-700);
+      border-color: var(--brand-500); transform: scale(1.12);
+    }
+    .kicker-info:active { transform: scale(0.93); }
+
+    /* XGBoost info popover — position: fixed so JS can place it anywhere */
+    .xgb-popover {
+      position: fixed; z-index: var(--z-toast);
+      width: 272px;
+      background: #fff;
+      border: 1px solid var(--ink-200);
+      border-radius: var(--r-lg);
+      box-shadow: 0 8px 28px oklch(13% 0.015 32 / 0.12), 0 1px 4px oklch(13% 0.015 32 / 0.05);
+      padding: 16px 18px;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.88) translateY(10px);
+      transform-origin: bottom right;
+      transition: opacity 0.3s var(--ease-out-quint), transform 0.3s var(--ease-out-quint);
+    }
+    .xgb-popover.open { pointer-events: auto; opacity: 1; transform: scale(1) translateY(0); }
+    .xgb-popover-title {
+      font-family: var(--font-display); font-size: 0.88rem; font-weight: 600;
+      color: var(--brand-700); margin-bottom: 8px;
+    }
+    .xgb-popover-body {
+      font-size: 0.8rem; color: var(--ink-500); line-height: 1.65; text-align: right;
+    }
+    .xgb-popover-body strong { color: var(--ink-900); }
+    @media (prefers-reduced-motion: reduce) {
+      .xgb-popover { transition: opacity 0.15s; transform: none; }
+      .xgb-popover.open { transform: none; }
+      .kicker-info:hover  { transform: none; }
+      .kicker-info:active { transform: none; }
     }
 
     .hero-title {
@@ -260,7 +311,7 @@
     .btn-primary:hover {
       background: var(--brand-900);
       transform: translateY(-2px);
-      box-shadow: 0 6px 18px oklch(18% 0.09 155 / 0.24);
+      box-shadow: 0 6px 18px oklch(18% 0.09 32 / 0.24);
     }
     .btn-primary:active {
       transform: scale(0.97) !important;
@@ -443,7 +494,7 @@
 
     .stat-label {
       font-size: 0.8rem;
-      color: oklch(82% 0.03 155); /* solid — reliable contrast on brand-700 */
+      color: oklch(82% 0.03 32); /* solid — reliable contrast on brand-700 */
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
@@ -478,24 +529,24 @@
     .feature-primary p {
       font-size: 0.975rem;
       line-height: 1.7;
-      color: oklch(86% 0.04 155);
+      color: oklch(86% 0.04 32);
       margin-bottom: 20px;
     }
     .feature-primary .feature-pill {
       display: inline-block;
-      background: oklch(35% 0.12 155);
-      border: 1px solid oklch(45% 0.13 155);
+      background: oklch(35% 0.12 32);
+      border: 1px solid oklch(45% 0.13 32);
       padding: 6px 14px;
       border-radius: 100px;
       font-size: 0.78rem;
       font-weight: 600;
-      color: oklch(88% 0.05 155);
+      color: oklch(88% 0.05 32);
     }
 
     /* Mini property demo — inside primary feature */
     .mini-demo {
-      background: oklch(33% 0.11 155);
-      border: 1px solid oklch(40% 0.13 155);
+      background: oklch(33% 0.11 32);
+      border: 1px solid oklch(40% 0.13 32);
       border-radius: var(--r-md);
       padding: 20px;
       font-size: 0.8rem;
@@ -505,12 +556,12 @@
       justify-content: space-between;
       align-items: center;
       padding: 6px 0;
-      border-bottom: 1px solid oklch(40% 0.13 155);
+      border-bottom: 1px solid oklch(40% 0.13 32);
     }
     .mini-demo .md-row:last-child { border-bottom: none; }
 
     .mini-demo .md-label {
-      color: oklch(80% 0.04 155); /* solid color — passes 4.5:1 on this background */
+      color: oklch(80% 0.04 32); /* solid color — passes 4.5:1 on this background */
     }
     .mini-demo .md-value { font-weight: 600; color: #fff; direction: ltr; }
     .mini-demo .md-value.good { color: oklch(78% 0.14 148); }
@@ -518,7 +569,7 @@
     .mini-score {
       margin-top: 14px;
       padding-top: 14px;
-      border-top: 1px solid oklch(40% 0.13 155);
+      border-top: 1px solid oklch(40% 0.13 32);
     }
     .mini-score-top {
       display: flex;
@@ -526,11 +577,11 @@
       font-size: 0.78rem;
       margin-bottom: 7px;
     }
-    .mini-score-top .label-s { color: oklch(80% 0.04 155); }
+    .mini-score-top .label-s { color: oklch(80% 0.04 32); }
     .mini-score-top .val-s   { color: #fff; font-weight: 700; }
     .mini-score-bar {
       height: 6px;
-      background: oklch(22% 0.1 155);
+      background: oklch(22% 0.1 32);
       border-radius: 3px;
       overflow: hidden;
     }
@@ -561,7 +612,7 @@
     .feature-secondary:hover {
       border-color: var(--brand-400);
       transform: translateY(-4px);
-      box-shadow: 0 10px 28px oklch(18% 0.09 155 / 0.09);
+      box-shadow: 0 10px 28px oklch(18% 0.09 32 / 0.09);
     }
 
     .feature-secondary h3 {
@@ -599,7 +650,7 @@
       transition: color 0.15s, gap 0.15s;
     }
     .feature-link:hover { color: var(--brand-700); }
-    .feature-primary .feature-link { color: oklch(85% 0.08 155); }
+    .feature-primary .feature-link { color: oklch(85% 0.08 32); }
     .feature-primary .feature-link:hover { color: #fff; }
 
     /* ─────────────────────────────────────────────────────────────────────────
@@ -616,7 +667,7 @@
       color: #fff;
       margin-bottom: 10px;
     }
-    .how-header p { font-size: 1rem; color: oklch(82% 0.03 155); }
+    .how-header p { font-size: 1rem; color: oklch(82% 0.03 32); }
 
     .how-steps {
       display: grid;
@@ -645,7 +696,7 @@
     }
     .how-step-desc {
       font-size: 0.875rem;
-      color: oklch(82% 0.03 155);
+      color: oklch(82% 0.03 32);
       line-height: 1.65;
     }
 
@@ -912,7 +963,13 @@
     <!-- Text column -->
     <div>
       <div class="hero-kicker">
-        <span>🤖</span> מבוסס XGBoost · 6,609 עסקאות
+        <span>🤖</span>
+        <div class="kicker-text">
+          <span class="kicker-main">מבוסס על 6,609 עסקאות</span>
+          <span class="kicker-sub">מודל חיזוי בשיטת XGBoost</span>
+        </div>
+        <button class="kicker-info" id="xgbInfoBtn"
+                aria-haspopup="true" aria-expanded="false" aria-label="מה זה XGBoost?">i</button>
       </div>
       <h1 class="hero-title">
         בדוק אם המחיר הוגן,<br>
@@ -1331,6 +1388,64 @@
 
     document.querySelectorAll('.reveal-motion').forEach(el => revealObs.observe(el));
   }
+
+  /* ── XGBoost info popover ─────────────────────────────────────────────────── */
+  // Popover is injected here so it exists in DOM before this script runs
+  document.body.insertAdjacentHTML('beforeend',
+    `<div class="xgb-popover" id="xgbPopover" role="tooltip" aria-live="polite">
+      <div class="xgb-popover-title">מה זה XGBoost?</div>
+      <div class="xgb-popover-body">
+        <strong>XGBoost</strong> הוא אלגוריתם למידת מכונה עוצמתי. הוא למד מ-<strong>6,609 עסקאות אמיתיות</strong> מרשות המיסים, ומשווה כל נכס לעסקאות דומות — לפי שטח, מיקום, קומה וגיל הבניין — כדי לחשב מחיר שוק הוגן.
+      </div>
+    </div>`
+  );
+
+  (function () {
+    const btn = document.getElementById('xgbInfoBtn');
+    const pop = document.getElementById('xgbPopover');
+    if (!btn || !pop) return;
+
+    function positionPop() {
+      const r   = btn.getBoundingClientRect();
+      const pw  = 272;
+      const gap = 10;
+      // Prefer upper-left of button; flip right if too close to left edge
+      const left = r.left - pw - gap >= 8
+        ? r.left - pw - gap
+        : r.right + gap;
+      const top  = Math.max(8, r.top - 10);
+      pop.style.left = left + 'px';
+      pop.style.top  = top  + 'px';
+    }
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (pop.classList.contains('open')) {
+        pop.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      } else {
+        positionPop();
+        pop.getBoundingClientRect(); // force reflow so browser sees start state
+        pop.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    document.addEventListener('click', e => {
+      if (!pop.contains(e.target) && e.target !== btn) {
+        pop.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && pop.classList.contains('open')) {
+        pop.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        btn.focus();
+      }
+    });
+  })();
 </script>
 </body>
 </html>

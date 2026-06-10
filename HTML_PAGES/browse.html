@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -12,19 +12,19 @@
   <style>
     /* ── Tokens ─────────────────────────────────────────────────────────────── */
     :root {
-      --brand-900: oklch(18% 0.09 155);
-      --brand-700: oklch(27% 0.12 155);
-      --brand-500: oklch(40% 0.14 155);
-      --brand-400: oklch(50% 0.15 155);
-      --brand-200: oklch(88% 0.06 155);
-      --brand-100: oklch(96% 0.015 155);
+      --brand-900: oklch(27% 0.09 32);
+      --brand-700: oklch(44% 0.13 32);
+      --brand-500: oklch(64% 0.11 32);
+      --brand-400: oklch(72% 0.09 32);
+      --brand-200: oklch(88% 0.04 32);
+      --brand-100: oklch(96% 0.015 32);
 
-      --ink-900: oklch(13% 0.015 155);
-      --ink-700: oklch(28% 0.025 155);
-      --ink-500: oklch(45% 0.03 155);
-      --ink-400: oklch(56% 0.03 155);
-      --ink-200: oklch(82% 0.018 155);
-      --ink-100: oklch(95% 0.01 155);
+      --ink-900: oklch(13% 0.012 40);
+      --ink-700: oklch(28% 0.022 40);
+      --ink-500: oklch(45% 0.025 40);
+      --ink-400: oklch(56% 0.022 40);
+      --ink-200: oklch(82% 0.015 40);
+      --ink-100: oklch(95% 0.010 40);
 
       --good:    oklch(50% 0.16 148);
       --good-bg: oklch(95% 0.04 148);
@@ -33,8 +33,8 @@
       --bad:     oklch(52% 0.16 25);
       --bad-bg:  oklch(96% 0.04 25);
 
-      --bg:      oklch(99.5% 0.003 155);
-      --surface: oklch(97% 0.008 155);
+      --bg:      oklch(95.5% 0.024 80);
+      --surface: oklch(97.5% 0.016 78);
 
       --font-display: 'Noto Serif Hebrew', Georgia, serif;
       --font-body:    'Rubik', system-ui, sans-serif;
@@ -72,13 +72,13 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: var(--z-nav);
-      background: rgba(253,253,252,0.92);
+      background: color-mix(in oklch, var(--bg) 88%, transparent);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--ink-200);
       transition: box-shadow 0.3s var(--ease-out-quint);
     }
-    .nav.is-scrolled { box-shadow: 0 2px 16px oklch(13% 0.015 155 / 0.07); }
+    .nav.is-scrolled { box-shadow: 0 2px 16px oklch(13% 0.015 32 / 0.07); }
     .nav-inner {
       max-width: 1200px; margin: 0 auto; padding: 0 24px;
       height: 60px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px;
@@ -159,7 +159,7 @@
       font-size: clamp(1.6rem, 3.5vw, 2.4rem);
       color: #fff; margin-bottom: 8px;
     }
-    .page-header p { font-size: 0.95rem; color: oklch(86% 0.04 155); max-width: 56ch; }
+    .page-header p { font-size: 0.95rem; color: oklch(86% 0.04 32); max-width: 56ch; }
 
     /* ── Controls (sticky) ───────────────────────────────────────────────────── */
     .controls-section {
@@ -168,7 +168,7 @@
       z-index: var(--z-controls);
       background: var(--bg);
       border-bottom: 1px solid var(--ink-200);
-      box-shadow: 0 2px 14px oklch(13% 0.015 155 / 0.05);
+      box-shadow: 0 2px 14px oklch(13% 0.015 32 / 0.05);
       animation: ctrlReveal 0.5s var(--ease-out-quint) 0.15s both;
     }
     .controls-inner { max-width: 1200px; margin: 0 auto; padding: 16px 24px 14px; }
@@ -192,7 +192,7 @@
     }
     .city-input:focus {
       outline: none; border-color: var(--brand-500);
-      box-shadow: 0 0 0 3px oklch(40% 0.14 155 / 0.12);
+      box-shadow: 0 0 0 3px oklch(40% 0.14 32 / 0.12);
     }
     .city-input::placeholder { color: var(--ink-400); }
 
@@ -213,7 +213,7 @@
     }
     .mode-tab.active {
       background: #fff; color: var(--brand-700);
-      box-shadow: 0 1px 4px oklch(13% 0.015 155 / 0.1);
+      box-shadow: 0 1px 4px oklch(13% 0.015 32 / 0.1);
     }
     .mode-tab:not(.active):hover { color: var(--ink-700); background: var(--ink-100); }
 
@@ -243,7 +243,7 @@
     }
     .range-input:focus {
       outline: none; border-color: var(--brand-500);
-      box-shadow: 0 0 0 2px oklch(40% 0.14 155 / 0.1);
+      box-shadow: 0 0 0 2px oklch(40% 0.14 32 / 0.1);
     }
     .range-input::-webkit-inner-spin-button,
     .range-input::-webkit-outer-spin-button { opacity: 0.5; }
@@ -999,10 +999,10 @@ function renderHistogram(records, mode) {
   const ticks   = niceTicks(maxC);
   const topTick = ticks[ticks.length - 1];
 
-  const ink      = 'oklch(50% 0.025 155)';
-  const gridClr  = 'oklch(88% 0.012 155)';
-  const axisClr  = 'oklch(70% 0.02 155)';
-  const barColor = mode === 'historical' ? 'oklch(40% 0.14 155)' : 'oklch(50% 0.15 25)';
+  const ink      = 'oklch(50% 0.025 32)';
+  const gridClr  = 'oklch(88% 0.012 32)';
+  const axisClr  = 'oklch(70% 0.02 32)';
+  const barColor = mode === 'historical' ? 'oklch(40% 0.14 32)' : 'oklch(50% 0.15 25)';
   const font     = 'font-size="11" font-family="Rubik,sans-serif"';
 
   let svg = '';
