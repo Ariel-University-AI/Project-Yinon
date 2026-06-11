@@ -203,7 +203,18 @@ class ScrapeRequest(BaseModel):
 def scrape(req: ScrapeRequest):
     url = req.url.strip()
     result = _scrape_listing(url)
-    # Match city to our settlement list
+    if result.get("city"):
+        matched = _match_settlement(result["city"], settlements)
+        result["city"] = matched or result["city"]
+    return JSONResponse(result)
+
+
+class ParseSourceRequest(BaseModel):
+    html: str
+
+@app.post("/api/parse-source")
+def parse_source(req: ParseSourceRequest):
+    result = _parse_yad2_html(req.html.strip())
     if result.get("city"):
         matched = _match_settlement(result["city"], settlements)
         result["city"] = matched or result["city"]

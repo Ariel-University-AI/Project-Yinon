@@ -740,6 +740,21 @@
           <button class="btn-extract" id="extractBtn">חלץ פרטים</button>
         </div>
 
+        <!-- Fallback: shown when Yad2 blocks server-side scraping -->
+        <div id="sourceFallback" style="display:none; margin-top:18px;">
+          <div style="background:oklch(96% 0.015 32);border:1px solid oklch(88% 0.04 32);border-radius:10px;padding:16px 18px;">
+            <p style="font-size:0.88rem;font-weight:600;margin-bottom:8px;">יד2 חסמה גישה מהשרת — השתמש בשיטה הידנית:</p>
+            <ol style="font-size:0.83rem;line-height:1.8;padding-right:20px;color:var(--ink-700);margin-bottom:12px;">
+              <li>פתח את קישור יד2 בדפדפן שלך</li>
+              <li>לחץ <strong>Ctrl+U</strong> לצפייה בקוד המקור של הדף</li>
+              <li>לחץ <strong>Ctrl+A</strong> ואז <strong>Ctrl+C</strong> להעתקת הכל</li>
+              <li>הדבק כאן ולחץ "חלץ":</li>
+            </ol>
+            <textarea id="sourceInput" rows="3" dir="ltr" style="width:100%;padding:8px 10px;border:1px solid var(--ink-200);border-radius:6px;font-size:0.78rem;font-family:monospace;resize:vertical;background:var(--surface);" placeholder="הדבק כאן את קוד המקור של דף יד2..."></textarea>
+            <button id="parseSourceBtn" style="margin-top:10px;padding:9px 22px;background:var(--brand-700);color:#fff;border:none;border-radius:7px;font-family:var(--font-body);font-size:0.88rem;cursor:pointer;transition:background 0.18s;">חלץ פרטים מקוד המקור</button>
+          </div>
+        </div>
+
         <div class="autofill-status" id="autofillStatus"></div>
 
         <!-- After extraction, show the form fields in URL pane too -->
@@ -998,6 +1013,32 @@
     document.getElementById('errorMsg').classList.remove('visible');
   }
 
+  /* ── Apply scraped data to form fields ──────────────────────────────────── */
+  function applyExtractedData(data) {
+    const fields = { urlPrice: data.price, urlArea: data.area,
+                     urlRooms: data.rooms, urlFloor: data.floor };
+    const chips = [];
+    Object.entries(fields).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val != null) { el.value = val; chips.push({ id, filled: true }); }
+      else chips.push({ id, filled: false });
+    });
+    const cityEl = document.getElementById('urlCity');
+    if (data.city && cityEl) {
+      const opt = Array.from(cityEl.options).find(o => o.value === data.city);
+      if (opt) { cityEl.value = data.city; chips.push({ id: 'city', filled: true }); }
+      else chips.push({ id: 'city', filled: false });
+    }
+    const LABELS = { urlPrice: 'מחיר', urlArea: 'שטח', urlRooms: 'חדרים', urlFloor: 'קומה', city: 'עיר' };
+    const statusEl = document.getElementById('autofillStatus');
+    statusEl.innerHTML = chips.map(c =>
+      `<span class="autofill-chip ${c.filled ? 'filled' : 'missing'}">${c.filled ? '✓' : '✗'} ${LABELS[c.id] || c.id}</span>`
+    ).join('');
+    statusEl.classList.add('visible');
+    _extractedCoords = { lat: data.lat || null, lon: data.lon || null, street: data.street || null };
+    document.getElementById('urlFormFields').style.display = 'block';
+  }
+
   /* ── Extract from URL ────────────────────────────────────────────────────── */
   document.getElementById('extractBtn').addEventListener('click', async () => {
     const url = document.getElementById('urlInput').value.trim();
@@ -1015,50 +1056,50 @@
       });
       const data = await res.json();
 
-      if (data.error) { showError('⚠️ ' + data.error); return; }
-
-      // Populate URL form fields
-      const fields = { urlPrice: data.price, urlArea: data.area,
-                       urlRooms: data.rooms, urlFloor: data.floor };
-      const chips = [];
-      Object.entries(fields).forEach(([id, val]) => {
-        const el = document.getElementById(id);
-        if (el && val != null) { el.value = val; chips.push({ id, filled: true }); }
-        else chips.push({ id, filled: false });
-      });
-
-      // City
-      const cityEl = document.getElementById('urlCity');
-      if (data.city && cityEl) {
-        const opt = Array.from(cityEl.options).find(o => o.value === data.city);
-        if (opt) { cityEl.value = data.city; chips.push({ id: 'city', filled: true }); }
-        else chips.push({ id: 'city', filled: false });
+      if (data.error) {
+        // Yad2 is blocking server-side access — show paste-source fallback
+        if (data.error.includes('__NEXT_DATA__') || data.error.includes('חסמ') || data.error.includes('חיבור')) {
+          document.getElementById('sourceFallback').style.display = '';
+          showError('⚠️ יד2 חסמה גישה מהשרת — ראה הוראות למטה');
+        } else {
+          showError('⚠️ ' + data.error);
+        }
+        return;
       }
-
-      // Show autofill status
-      const LABELS = { urlPrice: 'מחיר', urlArea: 'שטח', urlRooms: 'חדרים', urlFloor: 'קומה', city: 'עיר' };
-      const statusEl = document.getElementById('autofillStatus');
-      statusEl.innerHTML = chips.map(c =>
-        `<span class="autofill-chip ${c.filled ? 'filled' : 'missing'}">
-          ${c.filled ? '✓' : '✗'} ${LABELS[c.id] || c.id}
-        </span>`
-      ).join('');
-      statusEl.classList.add('visible');
-
-      // Store extracted coordinates for map
-      _extractedCoords = {
-        lat:    data.lat    || null,
-        lon:    data.lon    || null,
-        street: data.street || null,
-      };
-
-      // Show the form fields
-      document.getElementById('urlFormFields').style.display = 'block';
+      applyExtractedData(data);
 
     } catch (e) {
       showError('שגיאת חיבור — בדוק שהשרת פועל.');
     } finally {
       btn.disabled = false; btn.textContent = 'חלץ פרטים';
+    }
+  });
+
+  /* ── Parse pasted HTML source ────────────────────────────────────────────── */
+  document.getElementById('parseSourceBtn').addEventListener('click', async () => {
+    const html = document.getElementById('sourceInput').value.trim();
+    if (!html) { showError('הדבק קוד מקור תחילה.'); return; }
+    hideError();
+
+    const btn = document.getElementById('parseSourceBtn');
+    btn.disabled = true; btn.textContent = 'מחלץ...';
+
+    try {
+      const res = await fetch('/api/parse-source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html }),
+      });
+      const data = await res.json();
+
+      if (data.error) { showError('⚠️ ' + data.error); return; }
+      applyExtractedData(data);
+      document.getElementById('sourceFallback').style.display = 'none';
+
+    } catch (e) {
+      showError('שגיאת חיבור — בדוק שהשרת פועל.');
+    } finally {
+      btn.disabled = false; btn.textContent = 'חלץ פרטים מקוד המקור';
     }
   });
 
