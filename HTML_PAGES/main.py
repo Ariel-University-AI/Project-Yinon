@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 BASE       = pathlib.Path(__file__).parent
@@ -27,9 +26,6 @@ DISP_PATH  = BASE.parent / "DATA_FILES" / "apartments_display.csv"
 POI_PATH   = BASE.parent / "DATA_FILES" / "ISRAEL_POINTS_FILTERED_GEO.csv"
 
 app = FastAPI()
-
-# ── Static files ─────────────────────────────────────────────────────────────
-app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 # ── Load model + data once at startup ────────────────────────────────────────
 model  = joblib.load(MODEL_PATH)
@@ -257,7 +253,18 @@ class ScrapeRequest(BaseModel):
 def scrape(req: ScrapeRequest):
     url = req.url.strip()
     result = _scrape_listing(url)
-    # Match city to our settlement list
+    if result.get("city"):
+        matched = _match_settlement(result["city"], settlements)
+        result["city"] = matched or result["city"]
+    return JSONResponse(result)
+
+
+class ParseSourceRequest(BaseModel):
+    html: str
+
+@app.post("/api/parse-source")
+def parse_source(req: ParseSourceRequest):
+    result = _parse_yad2_html(req.html.strip())
     if result.get("city"):
         matched = _match_settlement(result["city"], settlements)
         result["city"] = matched or result["city"]

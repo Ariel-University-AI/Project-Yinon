@@ -744,6 +744,9 @@
 
       <!-- Data section -->
       <div id="dataSection" style="display:none">
+        <div id="yad2FallbackNote" style="display:none;background:oklch(96% 0.04 78);border:1px solid oklch(88% 0.04 32);border-radius:8px;padding:10px 14px;font-size:0.82rem;color:oklch(45% 0.025 40);margin-bottom:14px;">
+          ⚠️ יד2 חסמה גישה מהשרת — מוצגים נתונים היסטוריים מהמאגר במקום
+        </div>
         <div class="histogram-section" id="histogramSection" style="display:none">
           <div class="histogram-label">התפלגות מחירים &mdash; ציר X: מחיר, ציר Y: כמות עסקאות</div>
           <div id="histContainer"></div>
@@ -1143,6 +1146,17 @@ async function loadYad2District() {
   }
 }
 
+/* ── Yad2 fallback: auto-switch to historical when server is blocked ──────── */
+function _switchToHistoricalFallback() {
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+  document.querySelector('.mode-tab[data-mode="historical"]').classList.add('active');
+  _mode = 'historical';
+  fgYear.style.display      = '';
+  yad2LoadBar.style.display = 'none';
+  updateDatalist('historical');
+  $('yad2FallbackNote').style.display = '';
+}
+
 /* ── Load Yad2 data ───────────────────────────────────────────────────────── */
 async function loadYad2() {
   if (!_city) return;
@@ -1157,14 +1171,16 @@ async function loadYad2() {
     });
     const data = await resp.json();
     if (!resp.ok || data.error) {
-      showError('שגיאה בטעינת נתוני יד2', data.error || 'נסה שוב מאוחר יותר.');
+      _switchToHistoricalFallback();
+      await loadHistorical();
     } else {
       _rawRecords = data.records || [];
       _records    = applyYad2Filters(_rawRecords);
       renderResults(_records, 'yad2');
     }
   } catch (e) {
-    showError('שגיאת חיבור ליד2', 'בדוק חיבור לאינטרנט ונסה שוב.');
+    _switchToHistoricalFallback();
+    await loadHistorical();
   } finally {
     loadYad2Btn.disabled    = false;
     loadYad2Btn.textContent = '🔄 טען מחדש';
