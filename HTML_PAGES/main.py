@@ -494,6 +494,24 @@ def map_data(req: MapDataRequest):
 
 # ── Scraping helpers (ported from app_simple.py) ──────────────────────────────
 
+_SCRAPERAPI_KEY = "0c71b8175708db5a86a7ff05805de670"
+
+
+def _yad2_get(url: str, params: dict = None, timeout: int = 35) -> tuple:
+    """Fetch a Yad2 URL via ScraperAPI (bypasses datacenter IP blocks)."""
+    import requests as _req
+    from urllib.parse import urlencode, quote_plus
+    target = (url + "?" + urlencode(params)) if params else url
+    api_url = f"http://api.scraperapi.com?api_key={_SCRAPERAPI_KEY}&url={quote_plus(target)}"
+    try:
+        r = _req.get(api_url, timeout=timeout)
+        if r.status_code == 200 and len(r.text) > 3000:
+            return r.text, None
+        return None, f"קוד שגיאה {r.status_code}"
+    except Exception as exc:
+        return None, str(exc)
+
+
 _YAD2_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -630,37 +648,11 @@ def _parse_yad2_html(html: str) -> dict:
 
 
 def _scrape_yad2(url: str) -> dict:
-    import time as _time
     if not re.search(r"yad2\.co\.il/.*item/", url):
         return {"error": "הקישור אינו תקין — חייב להיות קישור לנכס ב-yad2.co.il"}
-    _extra = {
-        "Referer": "https://www.google.com/",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "cross-site",
-    }
-    html = None
-    try:
-        from curl_cffi import requests as _cr
-        for _attempt, _ver in enumerate(["chrome133", "chrome131", "chrome124", "chrome120"]):
-            try:
-                if _attempt: _time.sleep(1.5)
-                s = _cr.Session(impersonate=_ver)
-                s.headers.update(_extra)
-                resp = s.get(url, timeout=25)
-                if resp.status_code == 200 and len(resp.text) > 5000:
-                    html = resp.text; break
-            except Exception:
-                continue
-    except ImportError:
-        pass
+    html, err = _yad2_get(url, timeout=35)
     if html is None:
-        try:
-            import requests
-            resp = requests.get(url, headers={**_YAD2_HEADERS, **_extra}, timeout=15)
-            html = resp.text
-        except Exception:
-            return {"error": "שגיאת חיבור — בדוק חיבור לאינטרנט."}
+        return {"error": err or "שגיאת חיבור — בדוק חיבור לאינטרנט."}
     return _parse_yad2_html(html)
 
 
@@ -867,15 +859,13 @@ def _lookup_yad2_city_id_api(city: str) -> Optional[int]:
     if city in _dynamic_city_ids:
         return _dynamic_city_ids[city]
     try:
-        import requests as _r
-        resp = _r.get(
+        html, _ = _yad2_get(
             "https://gw.yad2.co.il/general/locations",
             params={"text": city, "lang": "he", "type": "0"},
-            headers=_YAD2_HEADERS,
-            timeout=7,
+            timeout=15,
         )
-        if resp.ok:
-            d = resp.json()
+        if html:
+            d = json.loads(html)
             items = (d.get("data", {}).get("cities") or d.get("cities") or
                      d.get("data") or [])
             if isinstance(items, dict):
@@ -899,7 +889,7 @@ def _lookup_yad2_city_id_api(city: str) -> Optional[int]:
 
 
 def _fetch_yad2_search_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
-                            page: int = 1, timeout: int = 20):
+                            page: int = 1, timeout: int = 35):
     url = "https://www.yad2.co.il/realestate/forsale"
     params: dict = {"propertyGroup": "apartments", "propertyType": "1", "page": page}
     if city_id is not None:
@@ -908,35 +898,7 @@ def _fetch_yad2_search_page(city_id: Optional[int] = None, city_name: Optional[s
         params["cityText"] = city_name
     else:
         return None, "לא סופק מזהה עיר."
-    hdrs = {
-        **_YAD2_HEADERS,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Referer": "https://www.yad2.co.il/realestate/forsale",
-        "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "same-origin",
-    }
-    try:
-        from curl_cffi import requests as _cr
-        import time as _t
-        for i, ver in enumerate(["chrome116", "chrome110", "chrome120", "chrome124"]):
-            try:
-                if i: _t.sleep(1.0)
-                s = _cr.Session(impersonate=ver)
-                s.headers.update(hdrs)
-                r = s.get(url, params=params, timeout=timeout)
-                if r.status_code == 200 and len(r.text) > 3000:
-                    return r.text, None
-            except Exception:
-                continue
-    except ImportError:
-        pass
-    try:
-        import requests as _req
-        r = _req.get(url, params=params, headers=hdrs, timeout=timeout)
-        if r.status_code == 200:
-            return r.text, None
-        return None, f"קוד שגיאה {r.status_code}"
-    except Exception as exc:
-        return None, str(exc)
+    return _yad2_get(url, params, timeout=timeout)
 
 
 def _parse_yad2_search_html(html: str):
@@ -1243,7 +1205,7 @@ def yad2_area_status():
 
 
 def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
-                          page: int = 1, timeout: int = 20):
+                          page: int = 1, timeout: int = 35):
     url = "https://www.yad2.co.il/realestate/rent"
     params: dict = {"propertyGroup": "apartments", "propertyType": "1", "page": page}
     if city_id is not None:
@@ -1252,35 +1214,7 @@ def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str
         params["cityText"] = city_name
     else:
         return None, "לא סופק מזהה עיר."
-    hdrs = {
-        **_YAD2_HEADERS,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Referer": "https://www.yad2.co.il/realestate/rent",
-        "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "same-origin",
-    }
-    try:
-        from curl_cffi import requests as _cr
-        import time as _t
-        for i, ver in enumerate(["chrome116", "chrome110", "chrome120", "chrome124"]):
-            try:
-                if i: _t.sleep(1.0)
-                s = _cr.Session(impersonate=ver)
-                s.headers.update(hdrs)
-                r = s.get(url, params=params, timeout=timeout)
-                if r.status_code == 200 and len(r.text) > 3000:
-                    return r.text, None
-            except Exception:
-                continue
-    except ImportError:
-        pass
-    try:
-        import requests as _req
-        r = _req.get(url, params=params, headers=hdrs, timeout=timeout)
-        if r.status_code == 200:
-            return r.text, None
-        return None, f"קוד שגיאה {r.status_code}"
-    except Exception as exc:
-        return None, str(exc)
+    return _yad2_get(url, params, timeout=timeout)
 
 
 def _fetch_yad2_city_rent_listings(city_heb: str, max_pages: int = 2):
