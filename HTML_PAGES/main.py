@@ -497,21 +497,30 @@ def map_data(req: MapDataRequest):
 _SCRAPERAPI_KEY = "0c71b8175708db5a86a7ff05805de670"
 
 
-def _yad2_get(url: str, params: dict = None, timeout: int = 60) -> tuple:
+_YAD2_SEMAPHORE = threading.Semaphore(2)  # max 2 concurrent ScraperAPI requests
+
+
+def _yad2_get(url: str, params: dict = None, timeout: int = 65) -> tuple:
     """Fetch a Yad2 URL via ScraperAPI (bypasses datacenter IP blocks)."""
     import requests as _req
     from urllib.parse import urlencode, quote_plus
     target = (url + "?" + urlencode(params)) if params else url
     api_url = f"http://api.scraperapi.com?api_key={_SCRAPERAPI_KEY}&country_code=il&url={quote_plus(target)}"
-    try:
-        r = _req.get(api_url, timeout=timeout)
-        print(f"[yad2_get] {target[:80]} → status={r.status_code} len={len(r.text)}", flush=True)
-        if r.status_code == 200 and len(r.text) > 3000:
-            return r.text, None
-        return None, f"קוד שגיאה {r.status_code}"
-    except Exception as exc:
-        print(f"[yad2_get] ERROR {target[:80]} → {exc}", flush=True)
-        return None, str(exc)
+    with _YAD2_SEMAPHORE:
+        for attempt in range(3):
+            try:
+                if attempt:
+                    time.sleep(3)
+                r = _req.get(api_url, timeout=timeout)
+                print(f"[yad2_get] {target[:80]} → status={r.status_code} len={len(r.text)}", flush=True)
+                if r.status_code == 200 and len(r.text) > 3000:
+                    return r.text, None
+                return None, f"קוד שגיאה {r.status_code}"
+            except Exception as exc:
+                print(f"[yad2_get] attempt {attempt+1} ERROR → {exc}", flush=True)
+                if attempt == 2:
+                    return None, str(exc)
+    return None, "failed"
 
 
 _YAD2_HEADERS = {
