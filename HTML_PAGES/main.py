@@ -502,7 +502,7 @@ def _yad2_get(url: str, params: dict = None, timeout: int = 35) -> tuple:
     import requests as _req
     from urllib.parse import urlencode, quote_plus
     target = (url + "?" + urlencode(params)) if params else url
-    api_url = f"http://api.scraperapi.com?api_key={_SCRAPERAPI_KEY}&url={quote_plus(target)}"
+    api_url = f"http://api.scraperapi.com?api_key={_SCRAPERAPI_KEY}&country_code=il&url={quote_plus(target)}"
     try:
         r = _req.get(api_url, timeout=timeout)
         print(f"[yad2_get] {target[:80]} → status={r.status_code} len={len(r.text)}", flush=True)
