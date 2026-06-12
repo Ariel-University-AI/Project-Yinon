@@ -25,6 +25,9 @@ ML_PATH    = BASE.parent / "DATA_FILES" / "apartments_ml_ready.csv"
 DISP_PATH  = BASE.parent / "DATA_FILES" / "apartments_display.csv"
 POI_PATH   = BASE.parent / "DATA_FILES" / "ISRAEL_POINTS_FILTERED_GEO.csv"
 
+_DAILY_REFRESH_SECRET = "nadlanist_daily_2024"
+_DAILY_CACHE_PATH     = pathlib.Path("/tmp/yad2_daily_cache.json")
+
 app = FastAPI()
 
 # ── Load model + data once at startup ────────────────────────────────────────
@@ -41,6 +44,22 @@ _s_max = float(df_d["socio_index_avg"].max())
 # Load POI once (large file — load lazily on first use)
 _poi_df:  Optional[pd.DataFrame] = None
 _df_pred: Optional[pd.DataFrame] = None
+
+# ── Load daily Yad2 cache from file if exists and from today ─────────────────
+def _load_daily_cache():
+    global _yad2_area_cache, _yad2_area_ts
+    try:
+        import datetime as _dt
+        if _DAILY_CACHE_PATH.exists():
+            data = json.loads(_DAILY_CACHE_PATH.read_text(encoding="utf-8"))
+            if data.get("date") == _dt.date.today().isoformat():
+                _yad2_area_cache = data.get("prices", {})
+                _yad2_area_ts    = time.time()
+                print(f"[daily_cache] loaded {len(_yad2_area_cache)} cities from file", flush=True)
+    except Exception as e:
+        print(f"[daily_cache] load failed: {e}", flush=True)
+
+threading.Thread(target=_load_daily_cache, daemon=True).start()
 
 # Yad2 live price cache for areas page
 _yad2_area_cache: dict  = {}   # city_name -> avg_asking_price
@@ -506,11 +525,11 @@ def _yad2_get(url: str, params: dict = None, timeout: int = 65) -> tuple:
     from urllib.parse import urlencode, quote_plus
     target = (url + "?" + urlencode(params)) if params else url
     api_url = f"http://api.scraperapi.com?api_key={_SCRAPERAPI_KEY}&country_code=il&url={quote_plus(target)}"
-    with _YAD2_SEMAPHORE:
-        for attempt in range(3):
+    for attempt in range(2):
+        if attempt:
+            time.sleep(3)
+        with _YAD2_SEMAPHORE:
             try:
-                if attempt:
-                    time.sleep(3)
                 r = _req.get(api_url, timeout=timeout)
                 print(f"[yad2_get] {target[:80]} → status={r.status_code} len={len(r.text)}", flush=True)
                 if r.status_code == 200 and len(r.text) > 3000:
@@ -518,7 +537,7 @@ def _yad2_get(url: str, params: dict = None, timeout: int = 65) -> tuple:
                 return None, f"קוד שגיאה {r.status_code}"
             except Exception as exc:
                 print(f"[yad2_get] attempt {attempt+1} ERROR → {exc}", flush=True)
-                if attempt == 2:
+                if attempt == 1:
                     return None, str(exc)
     return None, "failed"
 
@@ -1205,6 +1224,17 @@ def yad2_area_start():
             _yad2_area_ts   = time.time()
             _yad2_area_busy = False
 
+        # Save to daily cache file
+        try:
+            import datetime as _dt
+            _DAILY_CACHE_PATH.write_text(
+                json.dumps({"date": _dt.date.today().isoformat(), "prices": _yad2_area_cache}),
+                encoding="utf-8",
+            )
+            print(f"[daily_cache] saved {len(_yad2_area_cache)} cities", flush=True)
+        except Exception as e:
+            print(f"[daily_cache] save failed: {e}", flush=True)
+
     threading.Thread(target=_run, daemon=True).start()
     return JSONResponse({"status": "started", "prices": {}, "count": 0})
 
@@ -1216,6 +1246,16 @@ def yad2_area_status():
         "prices":   _yad2_area_cache,
         "count":    len(_yad2_area_cache),
     })
+
+
+@app.get("/api/yad2-daily-refresh")
+def yad2_daily_refresh(secret: str = ""):
+    if secret != _DAILY_REFRESH_SECRET:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    global _yad2_area_cache, _yad2_area_ts
+    _yad2_area_cache = {}
+    _yad2_area_ts    = 0
+    return yad2_area_start()
 
 
 def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
