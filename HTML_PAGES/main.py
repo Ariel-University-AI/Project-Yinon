@@ -505,10 +505,12 @@ def _yad2_get(url: str, params: dict = None, timeout: int = 35) -> tuple:
     api_url = f"http://api.scraperapi.com?api_key={_SCRAPERAPI_KEY}&url={quote_plus(target)}"
     try:
         r = _req.get(api_url, timeout=timeout)
+        print(f"[yad2_get] {target[:80]} → status={r.status_code} len={len(r.text)}", flush=True)
         if r.status_code == 200 and len(r.text) > 3000:
             return r.text, None
         return None, f"קוד שגיאה {r.status_code}"
     except Exception as exc:
+        print(f"[yad2_get] ERROR {target[:80]} → {exc}", flush=True)
         return None, str(exc)
 
 
