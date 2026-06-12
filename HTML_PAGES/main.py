@@ -497,7 +497,7 @@ def map_data(req: MapDataRequest):
 _SCRAPERAPI_KEY = "0c71b8175708db5a86a7ff05805de670"
 
 
-_YAD2_SEMAPHORE = threading.Semaphore(2)  # max 2 concurrent ScraperAPI requests
+_YAD2_SEMAPHORE = threading.Semaphore(4)  # max 4 concurrent ScraperAPI requests
 
 
 def _yad2_get(url: str, params: dict = None, timeout: int = 65) -> tuple:
@@ -1144,9 +1144,12 @@ def yad2_area_start():
     def _run():
         global _yad2_area_cache, _yad2_area_ts, _yad2_area_busy
 
-        # All cities that appear in the areas table (have >= 5 historical deals)
+        # Top 20 cities by deal count that have a known Yad2 city ID
         counts  = df_d["settlementNameHeb"].value_counts()
-        cities_to_fetch = [c for c in counts[counts >= 5].index.tolist() if isinstance(c, str)]
+        cities_to_fetch = [
+            c for c in counts.index.tolist()
+            if isinstance(c, str) and c in _YAD2_CITY_IDS
+        ][:20]
 
         # Deduplicate: cities with same city_id use one representative
         seen_ids: set  = set()
@@ -1163,7 +1166,7 @@ def yad2_area_start():
 
         def _fetch_one(city):
             try:
-                rows, _ = _fetch_yad2_city_listings(city, max_pages=2)
+                rows, _ = _fetch_yad2_city_listings(city, max_pages=1)
                 if rows:
                     # Include all apartments; exclude tiny studios (< 1.5 rooms or < 35 sqm)
                     filtered = [
@@ -1183,7 +1186,7 @@ def yad2_area_start():
                 pass
             return city, None
 
-        with ThreadPoolExecutor(max_workers=3) as ex:
+        with ThreadPoolExecutor(max_workers=4) as ex:
             futs = {ex.submit(_fetch_one, c): c for c in unique_cities}
             for fut in as_completed(futs):
                 city, price = fut.result()
