@@ -497,7 +497,7 @@ def map_data(req: MapDataRequest):
 _SCRAPERAPI_KEY = "0c71b8175708db5a86a7ff05805de670"
 
 
-def _yad2_get(url: str, params: dict = None, timeout: int = 35) -> tuple:
+def _yad2_get(url: str, params: dict = None, timeout: int = 60) -> tuple:
     """Fetch a Yad2 URL via ScraperAPI (bypasses datacenter IP blocks)."""
     import requests as _req
     from urllib.parse import urlencode, quote_plus
