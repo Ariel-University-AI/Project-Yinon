@@ -16,9 +16,8 @@ SECRET      = "nadlanist_daily_2024"
 UPDATE_DAYS = 7  # עדכן פעם בשבוע
 STATE_FILE  = pathlib.Path.home() / ".nadlanist_last_update.json"
 
-# Import shared code from main.py
 sys.path.insert(0, str(pathlib.Path(__file__).parent / "HTML_PAGES"))
-from main import _YAD2_CITY_IDS, _YAD2_HEADERS, _parse_yad2_search_html
+from yad2_shared import _YAD2_CITY_IDS, _YAD2_HEADERS, _parse_yad2_search_html
 
 # ── Check if already ran this week ───────────────────────────────────────────
 def already_ran():
