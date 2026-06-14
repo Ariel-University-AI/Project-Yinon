@@ -1163,12 +1163,12 @@ def yad2_area_start():
     def _run():
         global _yad2_area_cache, _yad2_area_ts, _yad2_area_busy
 
-        # Top 20 cities by deal count that have a known Yad2 city ID
+        # All cities with known Yad2 ID, sorted by deal count
         counts  = df_d["settlementNameHeb"].value_counts()
         cities_to_fetch = [
             c for c in counts.index.tolist()
             if isinstance(c, str) and c in _YAD2_CITY_IDS
-        ][:20]
+        ]
 
         # Deduplicate: cities with same city_id use one representative
         seen_ids: set  = set()
@@ -1184,8 +1184,17 @@ def yad2_area_start():
                 id_to_rep[cid] = city
 
         def _fetch_one(city):
+            rows = None
+            for _attempt in range(5):
+                try:
+                    if _attempt:
+                        time.sleep(10 * _attempt)
+                    rows, _ = _fetch_yad2_city_listings(city, max_pages=1)
+                    if rows:
+                        break
+                except Exception:
+                    rows = None
             try:
-                rows, _ = _fetch_yad2_city_listings(city, max_pages=1)
                 if rows:
                     # Include all apartments; exclude tiny studios (< 1.5 rooms or < 35 sqm)
                     filtered = [
@@ -1205,7 +1214,7 @@ def yad2_area_start():
                 pass
             return city, None
 
-        with ThreadPoolExecutor(max_workers=4) as ex:
+        with ThreadPoolExecutor(max_workers=2) as ex:
             futs = {ex.submit(_fetch_one, c): c for c in unique_cities}
             for fut in as_completed(futs):
                 city, price = fut.result()
