@@ -27,6 +27,7 @@ POI_PATH   = BASE.parent / "DATA_FILES" / "ISRAEL_POINTS_FILTERED_GEO.csv"
 
 _DAILY_REFRESH_SECRET = "nadlanist_daily_2024"
 _DAILY_CACHE_PATH     = pathlib.Path("/tmp/yad2_daily_cache.json")
+_RENT_CACHE_PATH      = pathlib.Path("/tmp/yad2_rent_daily_cache.json")
 
 app = FastAPI()
 
@@ -60,6 +61,21 @@ def _load_daily_cache():
         print(f"[daily_cache] load failed: {e}", flush=True)
 
 threading.Thread(target=_load_daily_cache, daemon=True).start()
+
+def _load_rent_cache():
+    global _yad2_rent_cache, _yad2_rent_ts
+    try:
+        import datetime as _dt
+        if _RENT_CACHE_PATH.exists():
+            data = json.loads(_RENT_CACHE_PATH.read_text(encoding="utf-8"))
+            if data.get("date") == _dt.date.today().isoformat():
+                _yad2_rent_cache = data.get("rents", {})
+                _yad2_rent_ts    = time.time()
+                print(f"[rent_cache] loaded {len(_yad2_rent_cache)} cities from file", flush=True)
+    except Exception as e:
+        print(f"[rent_cache] load failed: {e}", flush=True)
+
+threading.Thread(target=_load_rent_cache, daemon=True).start()
 
 # Yad2 live price cache for areas page
 _yad2_area_cache: dict  = {}   # city_name -> avg_asking_price
@@ -1099,6 +1115,26 @@ def yad2_set_prices(req: SetPricesRequest, secret: str = ""):
         pass
     return JSONResponse({"status": "ok", "count": len(_yad2_area_cache)})
 
+
+class SetRentsRequest(BaseModel):
+    rents: dict
+
+@app.post("/api/yad2-set-rents")
+def yad2_set_rents(req: SetRentsRequest, secret: str = ""):
+    if secret != _DAILY_REFRESH_SECRET:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    global _yad2_rent_cache, _yad2_rent_ts
+    _yad2_rent_cache = {k: int(v) for k, v in req.rents.items()}
+    _yad2_rent_ts    = time.time()
+    try:
+        import datetime as _dt
+        _RENT_CACHE_PATH.write_text(
+            json.dumps({"date": _dt.date.today().isoformat(), "rents": _yad2_rent_cache}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+    return JSONResponse({"status": "ok", "count": len(_yad2_rent_cache)})
 
 
 def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
