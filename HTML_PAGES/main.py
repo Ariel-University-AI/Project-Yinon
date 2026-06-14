@@ -1261,10 +1261,13 @@ def yad2_area_status():
 def yad2_daily_refresh(secret: str = ""):
     if secret != _DAILY_REFRESH_SECRET:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
+    if _yad2_area_busy:
+        return JSONResponse({"status": "already_running"})
     global _yad2_area_cache, _yad2_area_ts
     _yad2_area_cache = {}
     _yad2_area_ts    = 0
-    return yad2_area_start()
+    yad2_area_start()
+    return JSONResponse({"status": "started"})
 
 
 def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
