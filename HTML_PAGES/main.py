@@ -1257,6 +1257,27 @@ def yad2_area_status():
     })
 
 
+class SetPricesRequest(BaseModel):
+    prices: dict
+
+@app.post("/api/yad2-set-prices")
+def yad2_set_prices(req: SetPricesRequest, secret: str = ""):
+    if secret != _DAILY_REFRESH_SECRET:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    global _yad2_area_cache, _yad2_area_ts
+    _yad2_area_cache = {k: int(v) for k, v in req.prices.items()}
+    _yad2_area_ts    = time.time()
+    try:
+        import datetime as _dt
+        _DAILY_CACHE_PATH.write_text(
+            json.dumps({"date": _dt.date.today().isoformat(), "prices": _yad2_area_cache}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+    return JSONResponse({"status": "ok", "count": len(_yad2_area_cache)})
+
+
 @app.get("/api/yad2-daily-refresh")
 def yad2_daily_refresh(secret: str = ""):
     if secret != _DAILY_REFRESH_SECRET:
