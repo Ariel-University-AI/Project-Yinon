@@ -73,13 +73,13 @@ def fetch_city_price(city_heb: str, city_id: int):
         return None
 
     filtered = [
-        r["asking_price"] for r in rows
-        if r.get("asking_price", 0) > 300_000
+        r["price"] for r in rows
+        if r.get("price", 0) > 300_000
         and (r.get("rooms") is None or r["rooms"] >= 2.0)
         and (r.get("area")  is None or r["area"]  >= 40)
     ]
     prices = sorted(filtered) if filtered else sorted(
-        [r["asking_price"] for r in rows if r.get("asking_price", 0) > 300_000]
+        [r["price"] for r in rows if r.get("price", 0) > 300_000]
     )
     if len(prices) >= 3:
         idx = int(len(prices) * 0.60)
@@ -103,9 +103,9 @@ def main():
         price = fetch_city_price(city, city_id)
         if price:
             prices[city] = price
-            print(f"  ✓ {city}: {price:,} ₪")
+            print(f"  + {city}: {price:,}")
         else:
-            print(f"  ✗ {city}")
+            print(f"  - {city}")
         time.sleep(0.5)
 
     print(f"\nנטענו {len(prices)} ערים. שולח ל-Render...")
@@ -118,10 +118,10 @@ def main():
         timeout=30,
     )
     if r.ok:
-        print(f"✓ הועלה בהצלחה: {r.json()}")
+        print(f"OK: {r.json()}")
         mark_ran()
     else:
-        print(f"✗ שגיאה בשליחה: {r.status_code} {r.text}")
+        print(f"ERROR: {r.status_code} {r.text}")
 
 if __name__ == "__main__":
     main()
