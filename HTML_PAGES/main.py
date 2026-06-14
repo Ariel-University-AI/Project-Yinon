@@ -65,7 +65,6 @@ threading.Thread(target=_load_daily_cache, daemon=True).start()
 _yad2_area_cache: dict  = {}   # city_name -> avg_asking_price
 _yad2_area_ts:    float = 0.0
 _yad2_area_busy:  bool  = False
-_yad2_area_lock         = threading.Lock()
 
 # Yad2 live rent cache for areas page
 _yad2_rent_cache: dict  = {}   # city_name -> median monthly rent
@@ -1149,104 +1148,6 @@ def yad2_browse_district(req: Yad2BrowseDistrictRequest):
     return {"records": all_records, "total": len(all_records)}
 
 
-@app.post("/api/yad2-area-prices/start")
-def yad2_area_start():
-    global _yad2_area_busy
-    now = time.time()
-    with _yad2_area_lock:
-        if _yad2_area_busy:
-            return JSONResponse({"status": "running", "prices": _yad2_area_cache, "count": len(_yad2_area_cache)})
-        if now - _yad2_area_ts < 1800 and _yad2_area_cache:
-            return JSONResponse({"status": "cached", "prices": _yad2_area_cache, "count": len(_yad2_area_cache)})
-        _yad2_area_busy = True
-
-    def _run():
-        global _yad2_area_cache, _yad2_area_ts, _yad2_area_busy
-
-        # All cities with known Yad2 ID, sorted by deal count
-        counts  = df_d["settlementNameHeb"].value_counts()
-        cities_to_fetch = [
-            c for c in counts.index.tolist()
-            if isinstance(c, str) and c in _YAD2_CITY_IDS
-        ]
-
-        # Deduplicate: cities with same city_id use one representative
-        seen_ids: set  = set()
-        unique_cities: list = []
-        id_to_rep:   dict = {}
-        for city in cities_to_fetch:
-            cid = _YAD2_CITY_IDS.get(city)
-            if cid is None:
-                unique_cities.append(city)          # no known id → fetch by name
-            elif cid not in seen_ids:
-                seen_ids.add(cid)
-                unique_cities.append(city)
-                id_to_rep[cid] = city
-
-        def _fetch_one(city):
-            rows = None
-            for _attempt in range(5):
-                try:
-                    if _attempt:
-                        time.sleep(10 * _attempt)
-                    rows, _ = _fetch_yad2_city_listings(city, max_pages=1)
-                    if rows:
-                        break
-                except Exception:
-                    rows = None
-            try:
-                if rows:
-                    # Include all apartments; exclude tiny studios (< 1.5 rooms or < 35 sqm)
-                    filtered = [
-                        r["asking_price"] for r in rows
-                        if r.get("asking_price", 0) > 300_000
-                        and (r.get("rooms") is None or r["rooms"] >= 2.0)
-                        and (r.get("area")  is None or r["area"]  >= 40)
-                    ]
-                    prices = sorted(filtered) if filtered else sorted(
-                        [r["asking_price"] for r in rows if r.get("asking_price", 0) > 300_000]
-                    )
-                    if len(prices) >= 3:
-                        # 60th percentile — skew toward larger/pricier typical apartments
-                        idx = int(len(prices) * 0.60)
-                        return city, prices[min(idx, len(prices) - 1)]
-            except Exception:
-                pass
-            return city, None
-
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            futs = {ex.submit(_fetch_one, c): c for c in unique_cities}
-            for fut in as_completed(futs):
-                city, price = fut.result()
-                if price is None:
-                    continue
-                with _yad2_area_lock:
-                    _yad2_area_cache[city] = price
-                    # Propagate to all aliases sharing the same city_id
-                    cid = _YAD2_CITY_IDS.get(city)
-                    if cid:
-                        for alt, aid in _YAD2_CITY_IDS.items():
-                            if aid == cid:
-                                _yad2_area_cache[alt] = price
-
-        with _yad2_area_lock:
-            _yad2_area_ts   = time.time()
-            _yad2_area_busy = False
-
-        # Save to daily cache file
-        try:
-            import datetime as _dt
-            _DAILY_CACHE_PATH.write_text(
-                json.dumps({"date": _dt.date.today().isoformat(), "prices": _yad2_area_cache}),
-                encoding="utf-8",
-            )
-            print(f"[daily_cache] saved {len(_yad2_area_cache)} cities", flush=True)
-        except Exception as e:
-            print(f"[daily_cache] save failed: {e}", flush=True)
-
-    threading.Thread(target=_run, daemon=True).start()
-    return JSONResponse({"status": "started", "prices": {}, "count": 0})
-
 
 @app.get("/api/yad2-area-prices/status")
 def yad2_area_status():
@@ -1277,18 +1178,6 @@ def yad2_set_prices(req: SetPricesRequest, secret: str = ""):
         pass
     return JSONResponse({"status": "ok", "count": len(_yad2_area_cache)})
 
-
-@app.get("/api/yad2-daily-refresh")
-def yad2_daily_refresh(secret: str = ""):
-    if secret != _DAILY_REFRESH_SECRET:
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-    if _yad2_area_busy:
-        return JSONResponse({"status": "already_running"})
-    global _yad2_area_cache, _yad2_area_ts
-    _yad2_area_cache = {}
-    _yad2_area_ts    = 0
-    yad2_area_start()
-    return JSONResponse({"status": "started"})
 
 
 def _fetch_yad2_rent_page(city_id: Optional[int] = None, city_name: Optional[str] = None,
