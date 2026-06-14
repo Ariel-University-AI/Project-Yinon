@@ -160,8 +160,15 @@ def main():
             print(f"  - {city}")
         time.sleep(0.5)
 
-    print(f"\nנטענו {len(prices)} ערים (מכירה). שולח ל-Render...")
-    post_to_render(RENDER_PRICES, "prices", prices)
+    # הרחב לכל הכינויים (תל אביב יפו → תל אביב-יפו → תל אביב וכו')
+    prices_expanded = {}
+    for city, price in prices.items():
+        cid = _YAD2_CITY_IDS.get(city)
+        for alt, aid in _YAD2_CITY_IDS.items():
+            if aid == cid:
+                prices_expanded[alt] = price
+    print(f"\nנטענו {len(prices)} ערים (מכירה), {len(prices_expanded)} עם כינויים. שולח ל-Render...")
+    post_to_render(RENDER_PRICES, "prices", prices_expanded)
 
     # ── מחירי שכירות ─────────────────────────────────────────────────────────
     print("\nמתחיל טעינת מחירי שכירות...")
@@ -175,8 +182,14 @@ def main():
             print(f"  - {city}")
         time.sleep(0.5)
 
-    print(f"\nנטענו {len(rents)} ערים (שכירות). שולח ל-Render...")
-    post_to_render(RENDER_RENTS, "rents", rents)
+    rents_expanded = {}
+    for city, rent in rents.items():
+        cid = _YAD2_CITY_IDS.get(city)
+        for alt, aid in _YAD2_CITY_IDS.items():
+            if aid == cid:
+                rents_expanded[alt] = rent
+    print(f"\nנטענו {len(rents)} ערים (שכירות), {len(rents_expanded)} עם כינויים. שולח ל-Render...")
+    post_to_render(RENDER_RENTS, "rents", rents_expanded)
 
     mark_ran()
 
