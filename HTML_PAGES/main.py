@@ -220,8 +220,20 @@ def get_areas(min_deals: int = 5):
             if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
                 r[k] = None
         city = r.get("city", "")
-        yad2_rent = _yad2_rent_cache.get(city)
-        r["avg_rent_yad2"] = int(yad2_rent) if yad2_rent else None
+        def _lookup_cache(cache, name):
+            v = cache.get(name)
+            if v:
+                return v
+            cid = _YAD2_CITY_IDS.get(name)
+            if cid:
+                for alt, aid in _YAD2_CITY_IDS.items():
+                    if aid == cid and alt in cache:
+                        return cache[alt]
+            return None
+        yad2_price = _lookup_cache(_yad2_area_cache, city)
+        yad2_rent  = _lookup_cache(_yad2_rent_cache,  city)
+        r["avg_price_yad2"] = int(yad2_price) if yad2_price else None
+        r["avg_rent_yad2"]  = int(yad2_rent)  if yad2_rent  else None
     return JSONResponse(records)
 
 

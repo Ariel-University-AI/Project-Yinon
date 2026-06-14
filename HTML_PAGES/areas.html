@@ -1362,11 +1362,9 @@ function _estYield(p) {
 let _yad2PollTimer = null;
 
 function _applyYad2Prices(prices) {
-  const cities = Object.keys(prices);
-  if (!cities.length) return;
   let updated = 0;
   _allAreas = _allAreas.map(a => {
-    const p = prices[a.city];
+    const p = a.avg_price_yad2 || prices[a.city];
     if (!p) return a;
     updated++;
     return { ...a,
@@ -1379,11 +1377,9 @@ function _applyYad2Prices(prices) {
 }
 
 function _applyYad2Rents(rents) {
-  const cities = Object.keys(rents);
-  if (!cities.length) return;
   let updated = 0;
   _allAreas = _allAreas.map(a => {
-    const r = rents[a.city];
+    const r = a.avg_rent_yad2 || rents[a.city];
     if (!r) return a;
     updated++;
     return { ...a, avg_rent_yad2: r };
