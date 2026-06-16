@@ -69,7 +69,7 @@ def _fetch_html(url, params):
 def fetch_city_price(city_id: int):
     html = _fetch_html(
         "https://www.yad2.co.il/realestate/forsale",
-        {"propertyGroup": "apartments", "propertyType": "1", "page": "1", "city": city_id},
+        {"propertyGroup": "apartments", "propertyType": "1", "page": "1", "city": str(city_id).zfill(4)},
     )
     if not html:
         return None
@@ -94,7 +94,7 @@ def fetch_city_price(city_id: int):
 def fetch_city_rent(city_id: int):
     html = _fetch_html(
         "https://www.yad2.co.il/realestate/rent",
-        {"propertyGroup": "apartments", "propertyType": "1", "page": "1", "city": city_id},
+        {"propertyGroup": "apartments", "propertyType": "1", "page": "1", "city": str(city_id).zfill(4)},
     )
     if not html:
         return None
@@ -128,7 +128,7 @@ def fetch_city_rent(city_id: int):
 # ── Post to Render ────────────────────────────────────────────────────────────
 def post_to_render(url, payload_key, data):
     import requests as _req
-    r = _req.post(url, params={"secret": SECRET}, json={payload_key: data}, timeout=30)
+    r = _req.post(url, params={"secret": SECRET}, json={payload_key: data}, timeout=90)
     if r.ok:
         print(f"OK: {r.json()}")
     else:
