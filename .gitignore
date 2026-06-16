@@ -2,3 +2,15 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+
+# debug/investigation scripts (kept locally, not tracked)
+debug_*.py
+find_*.py
+check_*.py
+stream_yad2.py
+dump_html.py
+extract_all_city_ids.py
+get_yad2_city_id.py
+search_in_nearby_city.py
+*.html
+*.json
